@@ -3,7 +3,7 @@
 
 # Description:
 """
-Demo script to launch Language chat model for Southeast Asian Languages
+Demo script to launch Language chat model 
 """
 
 
@@ -35,7 +35,6 @@ from gradio.components import Button, Component
 from gradio.events import Dependency, EventListenerMethod
 
 from multipurpose_chatbot.demos.base_demo import CustomTabbedInterface
-
 
 
 # @@ environments ================
@@ -75,53 +74,41 @@ path_markdown = """
 
 cite_markdown = """
 ## Citation
-If you find our project useful, hope you can star our repo and cite our paper as follows:
+If you find our project useful, hope you can star our repo and cite our repo as follows:
 ```
-@article{damonlpsg2023seallm,
-  author = {Xuan-Phi Nguyen*, Wenxuan Zhang*, Xin Li*, Mahani Aljunied*, Zhiqiang Hu, Chenhui Shen^, Yew Ken Chia^, Xingxuan Li, Jianyu Wang, Qingyu Tan, Liying Cheng, Guanzheng Chen, Yue Deng, Sen Yang, Chaoqun Liu, Hang Zhang, Lidong Bing},
-  title = {SeaLLMs - Large Language Models for Southeast Asia},
-  year = 2023,
+@article{multipurpose_chatbot_2024,
+  author = {Xuan-Phi Nguyen, },
+  title = {Multipurpose Chatbot},
+  year = 2024,
 }
 ```
 """
 
+
+demo_and_tab_names = {
+    "VisionDocChatInterfaceDemo": "Vision Doc Chat",
+    "ChatInterfaceDemo": "Chat",
+    # "RagChatInterfaceDemo": "RAG Chat",
+}
+
+
 set_documentation_group("component")
-
-
-# MODEL_ENGINE = None
-# RAG_EMBED = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2', model_kwargs={'trust_remote_code':True})
-RAG_CURRENT_FILE = None
-RAG_CURRENT_VECTORSTORE = None
-
 
 
 def launch_demo():
     global demo, MODEL_ENGINE
     model_desc = MODEL_DESC
     model_path = MODEL_PATH
-    # model_title = MODEL_TITLE
-    # hf_model_name = HF_MODEL_NAME
-    # dtype = DTYPE
-    # sys_prompt = SYSTEM_PROMPT_1
-    # max_tokens = MAX_TOKENS
-    # temperature = TEMPERATURE
-    # frequence_penalty = FREQUENCE_PENALTY
-    # presence_penalty = PRESENCE_PENALTY
-    # ckpt_info = "None"
 
     print(f'Begin importing models')
-    # from multipurpose_chatbot.globals import MODEL_ENGINE
     from multipurpose_chatbot.demos import get_demo_class
-    
-    # print(f'{MODEL_ENGINE=}')
 
-    # demo_chat = create_chat_demo()
-    # demo_file_upload = create_file_upload_demo()
-    # demo_free_form = create_free_form_generation_demo()
-    # demo_rag_chat = create_rag_chat_demo()
-
+    demos = {
+        k: get_demo_class(k)().create_demo()
+        for k in demo_and_tab_names.keys()
+    }
     # demo_chat = get_demo_class("VisionChatInterfaceDemo")().create_demo()
-    demo_chat = get_demo_class("VisionDocChatInterfaceDemo")().create_demo()
+    # demo_chat = get_demo_class("VisionDocChatInterfaceDemo")().create_demo()
     # demo_chat = get_demo_class("ChatInterfaceDemo")().create_demo()
     # demo_chat = get_demo_class("RagVisionChatInterfaceDemo")().create_demo()
     # demo_rag_chat = get_demo_class("RagChatInterfaceDemo")().create_demo()
@@ -130,18 +117,8 @@ def launch_demo():
     descriptions += f"<br> {path_markdown.format(model_path=model_path)}"
 
     demo = CustomTabbedInterface(
-        interface_list=[
-            demo_chat, 
-            # demo_rag_chat,
-            # demo_free_form,
-            # demo_file_upload, 
-        ],
-        tab_names=[
-            "Chat Interface", 
-            # "RAG Chat Interface", 
-            # "Completion",
-            # "Batch Inference", 
-        ],
+        interface_list=list(demos.values()),
+        tab_names=list(demo_and_tab_names.values()),
         title=f"{MODEL_TITLE}",
         description=descriptions,
     )
