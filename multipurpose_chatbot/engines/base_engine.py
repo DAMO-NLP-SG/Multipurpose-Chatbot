@@ -11,13 +11,17 @@ class BaseEngine(object):
         pass
 
     @property
+    def max_position_embeddings(self) -> int:
+        return 10000
+
+    @property
     def tokenizer(self) -> PreTrainedTokenizer:
         raise NotImplementedError
     
     def load_model(self, ):
         raise NotImplementedError
 
-    def apply_chat_template(self, conversations, add_generation_prompt: bool, add_special_tokens=False) -> str:
+    def apply_chat_template(self, conversations, add_generation_prompt: bool, add_special_tokens=False, **kwargs) -> str:
         """
         return string convo, add_special_tokens should be added later
         """

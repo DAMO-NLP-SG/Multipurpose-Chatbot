@@ -24,7 +24,7 @@ from huggingface_hub import snapshot_download
 from gradio.components import Button
 from gradio.events import Dependency, EventListenerMethod
 
-
+from .base_engine import BaseEngine
 # @@ environments ================
 
 DEBUG = bool(int(os.environ.get("DEBUG", "0")))
@@ -67,11 +67,6 @@ try:
 except Exception as e:
     print(f'Failed to print compute_capability version: {e}')
 
-
-# DTYPES = {
-#     'float16': torch.float16,
-#     'bfloat16': torch.bfloat16
-# }
 
 llm = None
 demo = None
@@ -167,10 +162,12 @@ def vllm_generate_stream(
 
 
 
-class VllmEngine:
-    def __init__(self) -> None:
-        self._model = None
-        self._tokenizer = None
+class VllmEngine(BaseEngine):
+    # def __init__(self) -> None:
+    #     self._model = None
+    #     self._tokenizer = None
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     @property
     def tokenizer(self):
@@ -228,10 +225,10 @@ class VllmEngine:
             stop=stop_strings,
         )
         cur_out = None
-
+        num_tokens = len(self.tokenizer.encode(prompt))
         for j, gen in enumerate(vllm_generate_stream(llm, prompt, sampling_params)):
             if cur_out is not None and (STREAM_YIELD_MULTIPLE < 1 or j % STREAM_YIELD_MULTIPLE == 0) and j > 0:
-                yield cur_out
+                yield cur_out, num_tokens
             assert len(gen) == 1, f'{gen}'
             item = next(iter(gen.values()))
             cur_out = item.outputs[0].text
@@ -239,7 +236,9 @@ class VllmEngine:
                 # gr.Warning(f'The response hits limit of {max_tokens} tokens. Consider increase the max tokens parameter in the Additional Inputs.')
 
         if cur_out is not None:
-            yield cur_out
+            full_text = prompt + cur_out
+            num_tokens = len(self.tokenizer.encode(full_text))
+            yield cur_out, num_tokens
     
     def batch_generate(self, prompts, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         """

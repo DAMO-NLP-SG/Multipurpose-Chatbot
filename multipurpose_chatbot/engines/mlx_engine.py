@@ -183,12 +183,19 @@ class MlxEngine(BaseEngine):
     
 
     def generate_yield_string(self, prompt, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
-        yield from generate_yield_string(
+        num_tokens = len(self.tokenizer.encode(prompt))
+        response = None
+        for response in generate_yield_string(
             self._model, self._tokenizer,
             prompt, temp=temperature, max_tokens=max_tokens,
             repetition_penalty=kwargs.get("repetition_penalty", None),
             stop_strings=stop_strings,
-        )
+        ):
+            yield response, num_tokens
+        if response is not None:
+            full_text = prompt + response
+            num_tokens = len(self.tokenizer.encode(full_text))
+            yield response, num_tokens
 
     def batch_generate(self, prompts, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         """
