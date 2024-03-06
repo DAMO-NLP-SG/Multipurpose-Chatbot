@@ -50,21 +50,19 @@ from gradio.utils import SyncToAsyncIterator, async_iteration
 
 
 from .base_demo import register_demo, get_demo_class, BaseDemo
-
-
-SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", """You are a helpful, respectful, honest and safe AI assistant.""")
-MODEL_NAME = os.environ.get("MODEL_NAME", "Cool-Chatbot")
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "2048"))
-TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.1"))
+from ..configs import (
+    SYSTEM_PROMPT,
+    MODEL_NAME,
+    MAX_TOKENS,
+    TEMPERATURE,
+)
 
 from ..globals import MODEL_ENGINE
 
 CHAT_EXAMPLES = [
-    ["Hãy giải thích thuyết tương đối rộng."],
-    ["Tolong bantu saya menulis email ke lembaga pemerintah untuk mencari dukungan finansial untuk penelitian AI."],
-    ["แนะนำ 10 จุดหมายปลายทางในกรุงเทพฯ"],
+    ["Explain general relativity."],
 ]
-
+DATETIME_FORMAT = "Current date time: {cur_datetime}."
 
 
 def gradio_history_to_openai_conversations(message=None, history=None, system_prompt=None):
@@ -95,7 +93,7 @@ def gradio_history_to_conversation_prompt(message=None, history=None, system_pro
     return full_prompt
 
 
-DATETIME_FORMAT = "Current date time: {cur_datetime}."
+
 def get_datetime_string():
     from datetime import datetime
     now = datetime.now()
@@ -123,14 +121,12 @@ def chat_response_stream_multiturn_engine(
     temperature: float, 
     max_tokens: int, 
     system_prompt: Optional[str] = SYSTEM_PROMPT,
-# ) -> Generator[str]:
 ):
     global MODEL_ENGINE
     temperature = float(temperature)
     # ! remove frequency_penalty
     # frequency_penalty = float(frequency_penalty)
     max_tokens = int(max_tokens)
-    # print(f"{file_input=}")
     message = message.strip()
     if len(message) == 0:
         raise gr.Error("The message cannot be empty!")
@@ -139,7 +135,7 @@ def chat_response_stream_multiturn_engine(
         # ! This sometime works sometimes dont
         system_prompt = system_prompt.format(cur_datetime=get_datetime_string())
     full_prompt = gradio_history_to_conversation_prompt(message.strip(), history=history, system_prompt=system_prompt)
-    # ! skip length checked
+    # ! length checked
     num_tokens = len(MODEL_ENGINE.tokenizer.encode(full_prompt))
     if num_tokens >= MODEL_ENGINE.max_position_embeddings - 128:
         raise gr.Error(f"Conversation or prompt is too long ({num_tokens} toks), please clear the chatbox or try shorter input.")
@@ -158,14 +154,10 @@ def chat_response_stream_multiturn_engine(
             response, num_tokens = outputs, -1
         yield response, num_tokens
     
-    history_str = format_conversation(history + [[message, response]])
-    print(f'@@@@@@@@@@\n{history_str}\n##########\n')
-
     if response is not None:
         yield response, num_tokens
 
 
-# @document
 class CustomizedChatInterface(gr.ChatInterface):
     """
     Fixing some issue with chatinterace
@@ -223,16 +215,29 @@ class CustomizedChatInterface(gr.ChatInterface):
             concurrency_limit: If set, this is the maximum number of chatbot submissions that can be running simultaneously. Can be set to None to mean no limit (any number of chatbot submissions can be running simultaneously). Set to "default" to use the default concurrency limit (defined by the `default_concurrency_limit` parameter in `.queue()`, which is 1 by default).
             fill_height: If True, the chat interface will expand to the height of window.
         """
-        super(gr.ChatInterface, self).__init__(
-            analytics_enabled=analytics_enabled,
-            mode="chat_interface",
-            css=css,
-            title=title or "Gradio",
-            theme=theme,
-            js=js,
-            head=head,
-            fill_height=fill_height,
-        )
+        try:
+            super(gr.ChatInterface, self).__init__(
+                analytics_enabled=analytics_enabled,
+                mode="chat_interface",
+                css=css,
+                title=title or "Gradio",
+                theme=theme,
+                js=js,
+                head=head,
+                fill_height=fill_height,
+            )
+        except Exception as e:
+            # Handling some old gradio version with out fill_height
+            super(gr.ChatInterface, self).__init__(
+                analytics_enabled=analytics_enabled,
+                mode="chat_interface",
+                css=css,
+                title=title or "Gradio",
+                theme=theme,
+                js=js,
+                head=head,
+                # fill_height=fill_height,
+            )
         self.concurrency_limit = concurrency_limit
         self.fn = fn
         self.is_async = inspect.iscoroutinefunction(
@@ -397,12 +402,6 @@ class CustomizedChatInterface(gr.ChatInterface):
             any_unrendered_inputs = any(
                 not inp.is_rendered for inp in self.additional_inputs
             )
-            # with Row():
-            #     with Group():
-            #         self.use_rag = gr.Radio(choices=['No RAG', 'Use RAG'], value='No RAG', label='Use RAG for long doc, No RAG for short doc')
-            #         self.file_input = gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt'])
-            #     self.image_input = gr.Image(label="Input Image", type="filepath", )
-            #     self.multi_modal_inputs = [self.use_rag, self.file_input, self.image_input]
             if self.additional_inputs and any_unrendered_inputs:
                 with Accordion(**self.additional_inputs_accordion_params):  # type: ignore
                     for input_component in self.additional_inputs:
@@ -584,8 +583,8 @@ class CustomizedChatInterface(gr.ChatInterface):
                 api_name=False,
                 queue=False,
             )
-
         # Reconfigure clear_btn to stop and clear text box
+
     def _clear_and_save_textbox(self, message: str) -> tuple[str, str]:
         return "", message
 
@@ -644,17 +643,6 @@ class CustomizedChatInterface(gr.ChatInterface):
             yield history, history, "NaN toks"
             raise e
 
-
-
-# replace
-# gr.ChatInterface._setup_stop_events = _setup_stop_events
-# gr.ChatInterface._setup_events = _setup_events
-# gr.ChatInterface._display_input = _display_input
-# gr.ChatInterface._stream_fn = _stream_fn
-
-
-
-
 @register_demo
 class ChatInterfaceDemo(BaseDemo):
     def create_demo(
@@ -681,11 +669,8 @@ class ChatInterfaceDemo(BaseDemo):
                 ],
                 show_copy_button=True,
             ),
-            # textbox=gr.Textbox(placeholder='Type message', lines=4, max_lines=128, min_width=200),
             textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
             submit_btn=gr.Button(value='Submit', variant="primary", scale=0),
-            # ! consider preventing the stop button
-            # stop_btn=None,
             title=title,
             description=description,
             additional_inputs=[

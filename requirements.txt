@@ -1,4 +1,11 @@
 torch
 gradio
+tiktoken
+openai
 transformers
 langchain
+langchain-community
+langchain-core
+chromadb
+pypdf
+docx2txt

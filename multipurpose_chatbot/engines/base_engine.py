@@ -1,7 +1,8 @@
 import os
 import numpy as np
 from huggingface_hub import snapshot_download
-from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizer
+# ! Avoid importing transformers
+# from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizer
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 import time
 
@@ -15,7 +16,7 @@ class BaseEngine(object):
         return 10000
 
     @property
-    def tokenizer(self) -> PreTrainedTokenizer:
+    def tokenizer(self):
         raise NotImplementedError
     
     def load_model(self, ):

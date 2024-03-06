@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import argparse
-import torch
 import gradio as gr
 from typing import Any, Iterator
 from typing import Iterator, List, Optional, Tuple
@@ -27,45 +26,20 @@ from gradio.events import Dependency, EventListenerMethod
 from .base_engine import BaseEngine
 # @@ environments ================
 
-DEBUG = bool(int(os.environ.get("DEBUG", "0")))
+from ..configs import (
+    DTYPE,
+    TENSOR_PARALLEL,
+    MODEL_PATH,
+    QUANTIZATION,
+    MAX_TOKENS,
+    TEMPERATURE,
+    FREQUENCE_PENALTY,
+    PRESENCE_PENALTY,
+    GPU_MEMORY_UTILIZATION,
+    STREAM_CHECK_MULTIPLE,
+    STREAM_YIELD_MULTIPLE,
 
-# List of languages to block
-
-# for lang block, wether to block in history too
-TENSOR_PARALLEL = int(os.environ.get("TENSOR_PARALLEL", "1"))
-DTYPE = os.environ.get("DTYPE", "bfloat16")
-
-
-MODEL_PATH = os.environ.get("MODEL_PATH", "./seal-13b-chat-a")
-
-
-# self explanatory
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "8192"))
-TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.1"))
-# FREQUENCE_PENALTY = float(os.environ.get("FREQUENCE_PENALTY", "0.1"))
-# PRESENCE_PENALTY = float(os.environ.get("PRESENCE_PENALTY", "0.0"))
-
-gpu_memory_utilization = float(os.environ.get("gpu_memory_utilization", "0.9"))
-# whether to enable quantization, currently not in use
-QUANTIZATION = str(os.environ.get("QUANTIZATION", ""))
-
-
-STREAM_YIELD_MULTIPLE = int(os.environ.get("STREAM_YIELD_MULTIPLE", "1"))
-# how many iterations to perform safety check on response
-STREAM_CHECK_MULTIPLE = int(os.environ.get("STREAM_CHECK_MULTIPLE", "0"))
-
-try:
-    print(f'DEBUG mode: {DEBUG}')
-    print(f'Torch version: {torch.__version__}')
-    print(f'Torch CUDA version: {torch.version.cuda}')
-except Exception as e:
-    print(f'Failed to print cuda version: {e}')
-
-try:
-    compute_capability = torch.cuda.get_device_capability()
-    print(f'Torch CUDA compute_capability: {compute_capability}')
-except Exception as e:
-    print(f'Failed to print compute_capability version: {e}')
+)
 
 
 llm = None
@@ -163,9 +137,6 @@ def vllm_generate_stream(
 
 
 class VllmEngine(BaseEngine):
-    # def __init__(self) -> None:
-    #     self._model = None
-    #     self._tokenizer = None
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -174,13 +145,17 @@ class VllmEngine(BaseEngine):
         return self._model.get_tokenizer()
 
     def load_model(self, ):
+        import torch
+        try:
+            compute_capability = torch.cuda.get_device_capability()
+            print(f'Torch CUDA compute_capability: {compute_capability}')
+        except Exception as e:
+            print(f'Failed to print compute_capability version: {e}')
+
         import vllm
         from vllm import LLM
 
-        print(F'VLLM: {vllm.__version__}')
-        # ckpt_info = check_model_path(model_path)
-
-        # print(f'Load path: {model_path} | {ckpt_info}')
+        print(f'VLLM: {vllm.__version__=}')
 
         if QUANTIZATION == 'awq':
             print(F'Load model in int4 quantization')
@@ -188,7 +163,7 @@ class VllmEngine(BaseEngine):
                 model=MODEL_PATH, 
                 dtype="float16", 
                 tensor_parallel_size=TENSOR_PARALLEL, 
-                gpu_memory_utilization=gpu_memory_utilization, 
+                gpu_memory_utilization=GPU_MEMORY_UTILIZATION, 
                 quantization="awq", 
                 max_model_len=MAX_TOKENS
             )
@@ -197,7 +172,7 @@ class VllmEngine(BaseEngine):
                 model=MODEL_PATH, 
                 dtype=DTYPE, 
                 tensor_parallel_size=TENSOR_PARALLEL, 
-                gpu_memory_utilization=gpu_memory_utilization, 
+                gpu_memory_utilization=GPU_MEMORY_UTILIZATION, 
                 max_model_len=MAX_TOKENS
             )
 
@@ -216,12 +191,13 @@ class VllmEngine(BaseEngine):
 
     def generate_yield_string(self, prompt, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         from vllm import SamplingParams
+        # ! must abort previous ones
+        vllm_abort(llm)
         sampling_params = SamplingParams(
             temperature=temperature, 
             max_tokens=max_tokens,
             # frequency_penalty=frequency_penalty,
             # presence_penalty=presence_penalty,
-            # stop=['<s>', '</s>', '<|im_end|>', '<|im_start|>']
             stop=stop_strings,
         )
         cur_out = None
@@ -232,8 +208,6 @@ class VllmEngine(BaseEngine):
             assert len(gen) == 1, f'{gen}'
             item = next(iter(gen.values()))
             cur_out = item.outputs[0].text
-            # if j >= max_tokens - 2:
-                # gr.Warning(f'The response hits limit of {max_tokens} tokens. Consider increase the max tokens parameter in the Additional Inputs.')
 
         if cur_out is not None:
             full_text = prompt + cur_out
@@ -242,15 +216,16 @@ class VllmEngine(BaseEngine):
     
     def batch_generate(self, prompts, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         """
-        ! MLX does not support 
+        Only vllm should support this, the other engines is only batch=1 only
         """
         from vllm import SamplingParams
+        # ! must abort previous ones
+        vllm_abort(llm)
         sampling_params = SamplingParams(
             temperature=temperature, 
             max_tokens=max_tokens,
             # frequency_penalty=frequency_penalty,
             # presence_penalty=presence_penalty,
-            # stop=['<s>', '</s>', '<|im_end|>', '<|im_start|>']
             stop=stop_strings,
         )
         generated = llm.generate(prompts, sampling_params, use_tqdm=False)

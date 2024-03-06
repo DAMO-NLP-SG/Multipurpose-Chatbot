@@ -1,18 +1,20 @@
 import os
 
-BACKEND = os.environ.get("BACKEND", "mlx")
 global MODEL_ENGINE
 
 from multipurpose_chatbot.engines import load_multipurpose_chatbot_engine
 from multipurpose_chatbot.demos import get_demo_class
-# if MODEL_ENGINE is None:
-MODEL_ENGINE = load_multipurpose_chatbot_engine(BACKEND)
 
+from .configs import (
+    BACKEND,
+    RAG_EMBED_MODEL_NAME,
+)
+
+MODEL_ENGINE = load_multipurpose_chatbot_engine(BACKEND)
 
 
 RAG_CURRENT_FILE, RAG_EMBED, RAG_CURRENT_VECTORSTORE = None, None, None
 
-RAG_EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 def load_embeddings():
     global RAG_EMBED

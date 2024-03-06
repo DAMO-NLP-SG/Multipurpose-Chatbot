@@ -36,7 +36,6 @@ from .chat_interface import (
     gradio_history_to_conversation_prompt,
     DATETIME_FORMAT,
     get_datetime_string,
-    format_conversation,
     chat_response_stream_multiturn_engine,
     ChatInterfaceDemo,
     CustomizedChatInterface,
@@ -71,6 +70,38 @@ from gradio.utils import SyncToAsyncIterator, async_iteration
 
 from ..globals import MODEL_ENGINE
 
+from ..configs import (
+    USE_PANEL,
+    IMAGE_TOKEN,
+    IMAGE_TOKEN_INTERACTIVE,
+    CHATBOT_HEIGHT,
+)
+
+
+
+CSS = """
+.message-fit {
+    min-width: 20em; 
+    width: fit-content !important;
+}
+
+.message.svelte-1lcyrx4.svelte-1lcyrx4.svelte-1lcyrx4 {
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+"""
+
+
+DOC_TEMPLATE = """###
+{content}
+###
+
+"""
+
+DOC_INSTRUCTION = """Answer the following query exclusively based on the information provided in the document above. \
+If the information is not found, please say so instead of making up facts! Remember to answer the question in the same language as the user query!
+"""
+
 
 def undo_history(history):
     if len(history) == 0:
@@ -92,7 +123,6 @@ def undo_history_until_last_assistant_turn(history):
     return history, history
 
 
-
 class MultiModalChatInterface(CustomizedChatInterface):
     def __init__(
         self,
@@ -104,6 +134,7 @@ class MultiModalChatInterface(CustomizedChatInterface):
         additional_inputs_accordion_name: str | None = None,
         additional_inputs_accordion: str | Accordion | None = None,
         add_multimodal_fn: Callable | None = None,
+        render_additional_inputs_fn: Callable | None = None,
         examples: list[str] | None = None,
         cache_examples: bool | None = None,
         title: str | None = None,
@@ -148,19 +179,34 @@ class MultiModalChatInterface(CustomizedChatInterface):
             concurrency_limit: If set, this is the maximum number of chatbot submissions that can be running simultaneously. Can be set to None to mean no limit (any number of chatbot submissions can be running simultaneously). Set to "default" to use the default concurrency limit (defined by the `default_concurrency_limit` parameter in `.queue()`, which is 1 by default).
             fill_height: If True, the chat interface will expand to the height of window.
         """
-        super(gr.ChatInterface, self).__init__(
-            analytics_enabled=analytics_enabled,
-            mode="chat_interface",
-            css=css,
-            title=title or "Gradio",
-            theme=theme,
-            js=js,
-            head=head,
-            fill_height=fill_height,
-        )
+        try:
+            super(gr.ChatInterface, self).__init__(
+                analytics_enabled=analytics_enabled,
+                mode="chat_interface",
+                css=css,
+                title=title or "Gradio",
+                theme=theme,
+                js=js,
+                head=head,
+                fill_height=fill_height,
+            )
+        except Exception as e:
+            # Handle old gradio versions without fill_height
+            super(gr.ChatInterface, self).__init__(
+                analytics_enabled=analytics_enabled,
+                mode="chat_interface",
+                css=css,
+                title=title or "Gradio",
+                theme=theme,
+                js=js,
+                head=head,
+                # fill_height=fill_height,
+            )
+
         self.concurrency_limit = concurrency_limit
         self.fn = fn
         self.add_multimodal_fn = add_multimodal_fn
+        self.render_additional_inputs_fn = render_additional_inputs_fn
         self.multimodal_inputs = []
         self.is_async = inspect.iscoroutinefunction(
             self.fn
@@ -308,41 +354,44 @@ class MultiModalChatInterface(CustomizedChatInterface):
                     self.stop_btn,
                 ) = self.buttons
 
-            if examples:
-                if self.is_generator:
-                    examples_fn = self._examples_stream_fn
-                else:
-                    examples_fn = self._examples_fn
-
-                self.examples_handler = Examples(
-                    examples=examples,
-                    inputs=[self.textbox] + self.additional_inputs,
-                    outputs=self.chatbot,
-                    fn=examples_fn,
-                )
 
             any_unrendered_inputs = any(
                 not inp.is_rendered for inp in self.additional_inputs
             )
             if self.add_multimodal_fn is not None:
                 with Row():
-            #     with Group():
-            #         self.use_rag = gr.Radio(choices=['No RAG', 'Use RAG'], value='No RAG', label='Use RAG for long doc, No RAG for short doc')
-            #         self.file_input = gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt'])
-            #     self.image_input = gr.Image(label="Input Image", type="filepath", )
-            #     self.multi_modal_inputs = [self.use_rag, self.file_input, self.image_input]
                     self.multimodal_inputs = self.add_multimodal_fn()
                     if self.additional_inputs and any_unrendered_inputs:
                         with Accordion(**self.additional_inputs_accordion_params):  # type: ignore
-                            for input_component in self.additional_inputs:
-                                if not input_component.is_rendered:
-                                    input_component.render()
+                            if self.render_additional_inputs_fn is not None:
+                                self.render_additional_inputs_fn()
+                            else:
+                                for input_component in self.additional_inputs:
+                                    if not input_component.is_rendered:
+                                        input_component.render()
             else:
                 if self.additional_inputs and any_unrendered_inputs:
                     with Accordion(**self.additional_inputs_accordion_params):  # type: ignore
-                        for input_component in self.additional_inputs:
-                            if not input_component.is_rendered:
-                                input_component.render()
+                        if self.render_additional_inputs_fn is not None:
+                            self.render_additional_inputs_fn()
+                        else:
+                            for input_component in self.additional_inputs:
+                                if not input_component.is_rendered:
+                                    input_component.render()
+
+            if examples:
+                if self.is_generator:
+                    examples_fn = self._examples_stream_fn
+                else:
+                    # examples_fn = self._examples_fn
+                    raise NotImplementedError(f'Not streaming not impl')
+
+                self.examples_handler = Examples(
+                    examples=examples,
+                    inputs=[self.textbox] + self.multimodal_inputs + self.additional_inputs,
+                    outputs=self.chatbot,
+                    fn=examples_fn,
+                )
 
             # The example caching must happen after the input components have rendered
             if cache_examples:
@@ -360,44 +409,40 @@ class MultiModalChatInterface(CustomizedChatInterface):
         saved_input = [message] + list(multimodal_inputs)
         outputs = [''] + [None] * len(multimodal_inputs)
         return outputs + [saved_input]
-
-    # def _display_input(
-    #     self, message: str, history: list[list[str | None]]
-    # ) -> tuple[list[list[str | None]], list[list[str | None]]]:
-    #     history.append([message, None])
-    #     return history, history
     
-    def _display_input(
-        self, saved_input: List[str], history: List[List[Union[str, None]]]
-    ) -> Tuple[List[List[Union[str, None]]], List[List[list[Union[str, None]]]]]:
-        # message, *multimodal_inputs = saved_input
-        print(f'{saved_input=}')
-        message = saved_input[0]
-        multimodal_inputs = saved_input[1:] if len(saved_input) > 1 else None
-        # ! If things wrong, return original history and give warning
-        # if file_input is not None and image_input is not None:
-        #     raise gr.Error(f'Cannot use both file and image at the same time. Please remove one of them.')
-        #     return history, history
-        
-        # if file_input is not None and os.path.exists(file_input):
-        #     if use_rag == 'No RAG':
-        #         history.append([(file_input,), None])
-        #     else:
-        #         gr.Error(f"RAG not supported yet!")
-        
-        # if image_input is not None and os.path.exists(image_input):
-        #     history.append([(image_input,), None])
+    def _add_inputs_to_history(self, history: List[List[Union[str, None]]], *args):
+        message = args[0]
+        multimodal_inputs = args[1:1 + len(self.multimodal_inputs)] if len(args) > 1 else None
         if multimodal_inputs is not None:
             is_file_exists = [(x is not None and os.path.exists(x)) for x in multimodal_inputs]
             if any(is_file_exists):
                 file_exists = [f for f, ise in zip(multimodal_inputs, is_file_exists) if ise]
-                # assert len(file_exists) <= 1, f'{multimodal_inputs}'
                 if len(file_exists) > 1:
                     raise gr.Error(f"Cannot have more than 1 multimodal input at a time.")
                 fname = file_exists[0]
                 history.append([(fname,), None])
         if message is not None and message.strip() != "":
             history.append([message, None])
+        return history
+
+
+    def _display_input(
+        self, saved_input: List[str], history: List[List[Union[str, None]]]
+    ) -> Tuple[List[List[Union[str, None]]], List[List[list[Union[str, None]]]]]:
+        # message = saved_input[0]
+        # multimodal_inputs = saved_input[1:] if len(saved_input) > 1 else None
+        # # ! If things wrong, return original history and give warning
+        # if multimodal_inputs is not None:
+        #     is_file_exists = [(x is not None and os.path.exists(x)) for x in multimodal_inputs]
+        #     if any(is_file_exists):
+        #         file_exists = [f for f, ise in zip(multimodal_inputs, is_file_exists) if ise]
+        #         if len(file_exists) > 1:
+        #             raise gr.Error(f"Cannot have more than 1 multimodal input at a time.")
+        #         fname = file_exists[0]
+        #         history.append([(fname,), None])
+        # if message is not None and message.strip() != "":
+        #     history.append([message, None])
+        history = self._add_inputs_to_history(history, *saved_input)
         return history, history
     
     def _delete_prev_fn(
@@ -548,15 +593,55 @@ class MultiModalChatInterface(CustomizedChatInterface):
         except Exception as e:
             yield history, history, "NaN toks"
             raise e
+    
+    async def _examples_stream_fn(
+        self,
+        # message: str,
+        *args,
+    ) -> AsyncGenerator:
+        history = []
+        input_len = 1 + len(self.multimodal_inputs)
+        saved_input = args[:input_len]
+        message = saved_input[0]
+        additional_inputs = [] if len(args) <= input_len else args[input_len:]
+        history = self._add_inputs_to_history(history, *saved_input)
+        inputs, _, _ = special_args(self.fn, inputs=[history, *additional_inputs], request=None)
 
-
-
-# def multimodal_generate_response_stream(
+        if self.is_async:
+            generator = self.fn(*inputs)
+        else:
+            generator = await anyio.to_thread.run_sync(
+                self.fn, *inputs, limiter=self.limiter
+            )
+            generator = SyncToAsyncIterator(generator, self.limiter)
+        # async for response in generator:
+        #     yield [[message, response]]
         
-# ):
-        
+        try:
+            async for response_pack in generator:
+                if isinstance(response_pack, (tuple, list)):
+                    response, num_tokens = response_pack
+                else:
+                    response, num_tokens = response_pack, "NaN toks"
+                update = history + [[message, response]]
+                yield update, update, f"{num_tokens} toks"
+        except Exception as e:
+            yield history, history, "NaN toks"
+            raise e
+    
+    async def _examples_fn(self, message: str, *args) -> list[list[str | None]]:
+        raise NotImplementedError
+        inputs, _, _ = special_args(self.fn, inputs=[message, [], *args], request=None)
 
-IMAGE_TOKEN = "[IMAGE]<|image|>[/IMAGE]"
+        if self.is_async:
+            response = await self.fn(*inputs)
+        else:
+            response = await anyio.to_thread.run_sync(
+                self.fn, *inputs, limiter=self.limiter
+            )
+        return [[message, response]]
+
+
 
 def gradio_history_to_openai_conversations(message=None, history=None, system_prompt=None):
     conversations = []
@@ -587,7 +672,7 @@ def gradio_history_to_conversation_prompt(message=None, history=None, system_pro
 
 
 def gradio_history_to_vision_conversation_prompt_paths(
-        history, system_prompt=None
+        history, system_prompt=None, image_token=None
 ):
     """
     Aggregate gradio history into openai conversations
@@ -601,6 +686,7 @@ def gradio_history_to_vision_conversation_prompt_paths(
     ]
     """
     global MODEL_ENGINE
+    image_token = image_token or IMAGE_TOKEN
     conversations = []
     image_paths = []
     for i, his in enumerate(history):
@@ -610,12 +696,12 @@ def gradio_history_to_vision_conversation_prompt_paths(
             if isinstance(prompt, tuple):
                 image_path = prompt[0]
                 if last_turn is not None and last_turn['role'] == 'user':
-                    last_turn['content'] += f" {IMAGE_TOKEN}"
+                    last_turn['content'] += f" {image_token}"
                 else:
                     # last_turn None or last_turn['role'] == 'assistant'
                     conversations.append({
                         "role": "user",
-                        "content": f"{IMAGE_TOKEN}"
+                        "content": f"{image_token}"
                     })
                 image_paths.append(image_path)
             else:
@@ -646,18 +732,10 @@ def gradio_history_to_vision_conversation_prompt_paths(
     return full_prompt, image_paths, conversations
 
 
-
-DOC_TEMPLATE = """Answer the following query exclusively based on the information provided in the document above. \
-If the information is not found, please say so instead of making up facts! Remember to answer the question in the same language as the user query!
-###
-{content}
-###
-
-"""
-
 def is_doc(file_path):
     is_doc_allowed = file_path.endswith((".pdf", ".docx", ".txt"))
     return is_doc_allowed
+
 
 def read_doc(file_path):
     from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
@@ -672,8 +750,14 @@ def read_doc(file_path):
     return text
 
 
-def gradio_history_to_vision_doc_conversation_prompt_paths(
-        history, system_prompt=None
+def doc_file_to_instruct_content(file_path, doc_instruction=None):
+    doc_instruction = doc_instruction or DOC_INSTRUCTION
+    content = doc_instruction.strip() + "\n" + DOC_TEMPLATE.format(content=read_doc(file_path))
+    return content
+
+
+def gradio_history_to_doc_conversation_prompt(
+        history, system_prompt=None, doc_instruction=None,
 ):
     """
     Aggregate gradio history into openai conversations
@@ -687,6 +771,71 @@ def gradio_history_to_vision_doc_conversation_prompt_paths(
     ]
     """
     global MODEL_ENGINE
+    # image_token = image_token or IMAGE_TOKEN
+    doc_instruction = doc_instruction or DOC_INSTRUCTION
+    conversations = []
+    image_paths = []
+    for i, his in enumerate(history):
+        prompt, response = his
+        last_turn = conversations[-1] if len(conversations) > 0 else None
+        if prompt is not None:
+            if isinstance(prompt, tuple):
+                file_path = prompt[0]
+                if not is_doc(file_path):
+                    raise gr.Error(f'file not doc {file_path}')
+                content = doc_file_to_instruct_content(file_path, doc_instruction)
+                if last_turn is not None and last_turn['role'] == 'user':
+                    last_turn['content'] += f"{content}"
+                else:
+                    # last_turn None or last_turn['role'] == 'assistant'
+                    conversations.append({
+                        "role": "user",
+                        "content": f"{content}"
+                    })
+            else:
+                assert prompt is not None and isinstance(prompt, str)
+                if last_turn is not None and last_turn['role'] == 'user':
+                    last_turn['content'] += f"\n{prompt}"
+                else:
+                    conversations.append({
+                        "role": "user",
+                        "content": prompt,
+                    })
+        if response is not None:
+            assert isinstance(response, str)
+            conversations.append({
+                "role": "assistant",
+                "content": response,
+            })
+
+    if conversations[0]['role'] != 'system':
+        system_prompt = system_prompt or SYSTEM_PROMPT
+        conversations = [{"role": "system", "content": system_prompt}] + conversations
+    
+    full_prompt = MODEL_ENGINE.apply_chat_template(
+        conversations,
+        add_generation_prompt=True
+    )
+    return full_prompt, conversations
+
+
+def gradio_history_to_vision_doc_conversation_prompt_paths(
+        history, system_prompt=None, image_token=None, doc_instruction=None,
+):
+    """
+    Aggregate gradio history into openai conversations
+    history = [
+        ["Hello", "Response"],
+        [(file,), None],
+    ]
+    --->
+    [
+        {"role": "user", "content": ...}
+    ]
+    """
+    global MODEL_ENGINE
+    image_token = image_token or IMAGE_TOKEN
+    doc_instruction = doc_instruction or DOC_INSTRUCTION
     conversations = []
     image_paths = []
     for i, his in enumerate(history):
@@ -696,7 +845,7 @@ def gradio_history_to_vision_doc_conversation_prompt_paths(
             if isinstance(prompt, tuple):
                 file_path = prompt[0]
                 if is_doc(file_path):
-                    content = DOC_TEMPLATE.format(content=read_doc(file_path))
+                    content = doc_file_to_instruct_content(file_path, doc_instruction)
                     if last_turn is not None and last_turn['role'] == 'user':
                         last_turn['content'] += f"{content}"
                     else:
@@ -707,12 +856,12 @@ def gradio_history_to_vision_doc_conversation_prompt_paths(
                         })
                 else:
                     if last_turn is not None and last_turn['role'] == 'user':
-                        last_turn['content'] += f" {IMAGE_TOKEN}"
+                        last_turn['content'] += f" {image_token}"
                     else:
                         # last_turn None or last_turn['role'] == 'assistant'
                         conversations.append({
                             "role": "user",
-                            "content": f"{IMAGE_TOKEN}"
+                            "content": f"{image_token}"
                         })
                     image_paths.append(file_path)
             else:
@@ -735,7 +884,6 @@ def gradio_history_to_vision_doc_conversation_prompt_paths(
         system_prompt = system_prompt or SYSTEM_PROMPT
         conversations = [{"role": "system", "content": system_prompt}] + conversations
     
-    # print(f'convo: {json.dumps(conversations, indent=4, ensure_ascii=False)}\n{image_paths=}')
     full_prompt = MODEL_ENGINE.apply_chat_template(
         conversations,
         add_generation_prompt=True
@@ -744,22 +892,17 @@ def gradio_history_to_vision_doc_conversation_prompt_paths(
 
 
 def vision_chat_response_stream_multiturn_engine(
-    # message: str, 
     history: List[Tuple[str, str]], 
     temperature: float, 
     max_tokens: int, 
     system_prompt: Optional[str] = SYSTEM_PROMPT,
-# ) -> Generator[str]:
+    image_token: Optional[str] = IMAGE_TOKEN,
 ):
     global MODEL_ENGINE
     temperature = float(temperature)
     # ! remove frequency_penalty
     # frequency_penalty = float(frequency_penalty)
     max_tokens = int(max_tokens)
-    # print(f"{file_input=}")
-    # message = message.strip()
-    # if len(message) == 0:
-    #     raise gr.Error("The message cannot be empty!")
     # ! skip safety
     if DATETIME_FORMAT in system_prompt:
         # ! This sometime works sometimes dont
@@ -767,19 +910,18 @@ def vision_chat_response_stream_multiturn_engine(
     # ! history now can have multimodal
         
     full_prompt, image_paths, conversations = gradio_history_to_vision_conversation_prompt_paths(
-        history=history, system_prompt=system_prompt
+        history=history, system_prompt=system_prompt, image_token=image_token
     )
 
-    # ! skip length checked
     if hasattr(MODEL_ENGINE, "get_multimodal_tokens"):
-        num_tokens = len(MODEL_ENGINE.get_multimodal_tokens(full_prompt, image_paths=image_paths))
+        num_tokens = MODEL_ENGINE.get_multimodal_tokens(full_prompt, image_paths=image_paths)
     else:
         num_tokens = len(MODEL_ENGINE.tokenizer.encode(full_prompt))
     if num_tokens >= MODEL_ENGINE.max_position_embeddings - 128:
         raise gr.Error(f"Conversation or prompt is too long ({num_tokens} toks), please clear the chatbox or try shorter input.")
     
-    print(f'{full_prompt=}')
     print(f'{image_paths=}')
+    print(full_prompt)
     outputs = None
     response = None
     num_tokens = -1
@@ -795,30 +937,72 @@ def vision_chat_response_stream_multiturn_engine(
             response, num_tokens = outputs, -1
         yield response, num_tokens
     
-    history_str = format_conversation(history + [[None, response]])
-    print(f'@@@@@@@@@@\n{history_str}\n##########\n')
-
     if response is not None:
         yield response, num_tokens
 
 
-def vision_doc_chat_response_stream_multiturn_engine(
-    # message: str, 
+def doc_chat_response_stream_multiturn_engine(
     history: List[Tuple[str, str]], 
     temperature: float, 
     max_tokens: int, 
     system_prompt: Optional[str] = SYSTEM_PROMPT,
-# ) -> Generator[str]:
+    doc_instruction: Optional[str] = DOC_INSTRUCTION,
 ):
     global MODEL_ENGINE
     temperature = float(temperature)
     # ! remove frequency_penalty
     # frequency_penalty = float(frequency_penalty)
     max_tokens = int(max_tokens)
-    # print(f"{file_input=}")
-    # message = message.strip()
-    # if len(message) == 0:
-    #     raise gr.Error("The message cannot be empty!")
+    # ! skip safety
+    if DATETIME_FORMAT in system_prompt:
+        # ! This sometime works sometimes dont
+        system_prompt = system_prompt.format(cur_datetime=get_datetime_string())
+    # ! history now can have multimodal
+        
+    full_prompt, conversations = gradio_history_to_doc_conversation_prompt(
+        history=history, system_prompt=system_prompt, doc_instruction=doc_instruction
+    )
+
+    # ! length checked
+    num_tokens = len(MODEL_ENGINE.tokenizer.encode(full_prompt))
+    if num_tokens >= MODEL_ENGINE.max_position_embeddings - 128:
+        raise gr.Error(f"Conversation or prompt is too long ({num_tokens} toks), please clear the chatbox or try shorter input.")
+    
+    print(full_prompt)
+    outputs = None
+    response = None
+    num_tokens = -1
+    for j, outputs in enumerate(MODEL_ENGINE.generate_yield_string(
+        prompt=full_prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        # image_paths=image_paths,
+    )):
+        if isinstance(outputs, tuple):
+            response, num_tokens = outputs
+        else:
+            response, num_tokens = outputs, -1
+        yield response, num_tokens
+    
+    if response is not None:
+        yield response, num_tokens
+
+
+
+
+def vision_doc_chat_response_stream_multiturn_engine(
+    history: List[Tuple[str, str]], 
+    temperature: float, 
+    max_tokens: int, 
+    system_prompt: Optional[str] = SYSTEM_PROMPT,
+    image_token: Optional[str] = IMAGE_TOKEN,
+    doc_instruction: Optional[str] = DOC_INSTRUCTION,
+):
+    global MODEL_ENGINE
+    temperature = float(temperature)
+    # ! remove frequency_penalty
+    # frequency_penalty = float(frequency_penalty)
+    max_tokens = int(max_tokens)
     # ! skip safety
     if DATETIME_FORMAT in system_prompt:
         # ! This sometime works sometimes dont
@@ -826,12 +1010,12 @@ def vision_doc_chat_response_stream_multiturn_engine(
     # ! history now can have multimodal
         
     full_prompt, image_paths, conversations = gradio_history_to_vision_doc_conversation_prompt_paths(
-        history=history, system_prompt=system_prompt
+        history=history, system_prompt=system_prompt, image_token=image_token, doc_instruction=doc_instruction
     )
 
-    # ! skip length checked
+    # ! length check
     if hasattr(MODEL_ENGINE, "get_multimodal_tokens"):
-        num_tokens = len(MODEL_ENGINE.get_multimodal_tokens(full_prompt, image_paths=image_paths))
+        num_tokens = MODEL_ENGINE.get_multimodal_tokens(full_prompt, image_paths=image_paths)
     else:
         num_tokens = len(MODEL_ENGINE.tokenizer.encode(full_prompt))
     if num_tokens >= MODEL_ENGINE.max_position_embeddings - 128:
@@ -854,9 +1038,6 @@ def vision_doc_chat_response_stream_multiturn_engine(
             response, num_tokens = outputs, -1
         yield response, num_tokens
     
-    history_str = format_conversation(history + [[None, response]])
-    print(f'@@@@@@@@@@\n{history_str}\n##########\n')
-
     if response is not None:
         yield response, num_tokens
 
@@ -865,14 +1046,16 @@ def vision_doc_chat_response_stream_multiturn_engine(
 @register_demo
 class VisionChatInterfaceDemo(ChatInterfaceDemo):
     """
-    For document:
-        if RAG:
-            (indexing) and retrieve for every query, add file to every history
-        if no RAG:
-            no add file if needed (remove file in history)
-    For image:
-        remove file from history
+    Accept vision image
     """
+
+    @property
+    def examples(self):
+        return [
+            ["What's strange about this image?", "assets/dog_monalisa.jpeg",],
+            ["Explain why the sky is blue.", None,],
+        ]
+
     def create_demo(
             self, 
             title: str | None = None, 
@@ -883,12 +1066,23 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
         max_tokens = kwargs.get("max_tokens", MAX_TOKENS)
         temperature = kwargs.get("temperature", TEMPERATURE)
         model_name = kwargs.get("model_name", MODEL_NAME)
-        # frequence_penalty = FREQUENCE_PENALTY
-        # presence_penalty = PRESENCE_PENALTY
 
         def add_multimodal_fn() -> List[Component]:
             image_input = gr.Image(label="Input Image", type="filepath", )
             return [image_input]
+
+        additional_inputs = [
+            gr.Number(value=temperature, label='Temperature', min_width=20), 
+            gr.Number(value=max_tokens, label='Max-tokens', min_width=20), 
+            gr.Textbox(value=system_prompt, label='System prompt', lines=1),
+            gr.Textbox(value=IMAGE_TOKEN, label='Visual token', lines=1, interactive=IMAGE_TOKEN_INTERACTIVE, min_width=20),
+        ]
+        def render_additional_inputs_fn():
+            with Row():
+                additional_inputs[0].render()
+                additional_inputs[1].render()
+                additional_inputs[3].render()
+            additional_inputs[2].render()
 
         demo_chat = MultiModalChatInterface(
             vision_chat_response_stream_multiturn_engine,
@@ -900,6 +1094,8 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
                     { "left": "$$", "right": "$$", "display": True},
                 ],
                 show_copy_button=True,
+                layout="panel" if USE_PANEL else "bubble",
+                height=CHATBOT_HEIGHT,
             ),
             # textbox=gr.Textbox(placeholder='Type message', lines=4, max_lines=128, min_width=200),
             textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
@@ -909,38 +1105,37 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
             add_multimodal_fn=add_multimodal_fn,
             title=title,
             description=description,
-            additional_inputs=[
-                # gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt', 'json']),
-                # gr.Radio(choices=['No use RAG', 'Use RAG'], value='No use RAG', label='Use RAG for long doc, No RAG for short doc'), 
-                gr.Number(value=temperature, label='Temperature (higher -> more random)'), 
-                gr.Number(value=max_tokens, label='Max generated tokens (increase if want more generation)'), 
-                # gr.Number(value=frequence_penalty, label='Frequency penalty (> 0 encourage new tokens over repeated tokens)'), 
-                # gr.Number(value=presence_penalty, label='Presence penalty (> 0 encourage new tokens, < 0 encourage existing tokens)'), 
-                # gr.Number(value=0, label='current_time', visible=False), 
-                # ! Remove the system prompt textbox to avoid jailbreaking
-                gr.Textbox(value=system_prompt, label='System prompt', lines=1),
-            ], 
+            additional_inputs=additional_inputs, 
+            render_additional_inputs_fn=render_additional_inputs_fn,
             additional_inputs_accordion=gr.Accordion("Additional Inputs", open=True),
-            # examples=CHAT_EXAMPLES,
+            examples=self.examples,
             cache_examples=False,
+            css=CSS,
         )
         return demo_chat
-    
 
-CSS = """
-"""
+
+def add_document_upload():
+    file_input = gr.File(label='Upload pdf, docx, txt', file_count='single', file_types=['pdf', 'docx', 'txt'])
+    # with Group():
+    #     file_input = gr.Textbox(value=None, label='Document path', lines=1, interactive=False)
+    #     upload_button = gr.UploadButton("Click to Upload document", file_types=['pdf', 'docx', 'txt'], file_count="single")
+    #     upload_button.upload(lambda x: x.name, upload_button, file_input)
+    return file_input
+
 
 @register_demo
-class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
+class DocChatInterfaceDemo(ChatInterfaceDemo):
     """
-    For document:
-        if RAG:
-            (indexing) and retrieve for every query, add file to every history
-        if no RAG:
-            no add file if needed (remove file in history)
-    For image:
-        remove file from history
+    Accept document (full length no RAG)
     """
+    @property
+    def examples(self):
+        return [
+            ["Summarize the document", "assets/attention_short.pdf",],
+            ["Explain why the sky is blue.", None,],
+        ]
+    
     def create_demo(
             self, 
             title: str | None = None, 
@@ -955,9 +1150,98 @@ class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
         # presence_penalty = PRESENCE_PENALTY
 
         def add_multimodal_fn() -> List[Component]:
-            file_input = gr.File(label='Upload pdf, docx, txt', file_count='single', file_types=['pdf', 'docx', 'txt'])
+            file_input = add_document_upload()
+            # image_input = gr.Image(label="Input Image", type="filepath", )
+            return [file_input]
+        
+        additional_inputs = [
+            gr.Number(value=temperature, label='Temperature', min_width=20), 
+            gr.Number(value=max_tokens, label='Max-tokens', min_width=20), 
+            gr.Textbox(value=system_prompt, label='System prompt', lines=1),
+            gr.Textbox(value=DOC_INSTRUCTION, label='Doc instruction', lines=1),
+        ]
+        def render_additional_inputs_fn():
+            with Row():
+                additional_inputs[0].render()
+                additional_inputs[1].render()
+            additional_inputs[2].render()
+            additional_inputs[3].render()
+
+        demo_chat = MultiModalChatInterface(
+            doc_chat_response_stream_multiturn_engine,
+            chatbot=gr.Chatbot(
+                label=MODEL_NAME,
+                bubble_full_width=False,
+                latex_delimiters=[
+                    { "left": "$", "right": "$", "display": False},
+                    { "left": "$$", "right": "$$", "display": True},
+                ],
+                show_copy_button=True,
+                layout="panel" if USE_PANEL else "bubble",
+                height=CHATBOT_HEIGHT,
+            ),
+            textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
+            submit_btn=gr.Button(value='Submit', variant="primary", scale=0),
+            # ! consider preventing the stop button
+            add_multimodal_fn=add_multimodal_fn,
+            title=title,
+            description=description,
+            additional_inputs=additional_inputs, 
+            render_additional_inputs_fn=render_additional_inputs_fn,
+            additional_inputs_accordion=gr.Accordion("Additional Inputs", open=True),
+            examples=self.examples,
+            cache_examples=False,
+            css=CSS,
+        )
+        return demo_chat
+
+
+@register_demo
+class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
+    """
+    Accept either vision image or document (full length no RAG)
+    """
+
+    @property
+    def examples(self):
+        return [
+            ["What's strange about this image?", None, "assets/dog_monalisa.jpeg",],
+            ["Summarize the document", "assets/attention_short.pdf", None,],
+            ["Explain why the sky is blue.", None, None],
+        ]
+    
+    def create_demo(
+            self, 
+            title: str | None = None, 
+            description: str | None = None, 
+            **kwargs
+        ) -> gr.Blocks:
+        system_prompt = kwargs.get("system_prompt", SYSTEM_PROMPT)
+        max_tokens = kwargs.get("max_tokens", MAX_TOKENS)
+        temperature = kwargs.get("temperature", TEMPERATURE)
+        model_name = kwargs.get("model_name", MODEL_NAME)
+        # frequence_penalty = FREQUENCE_PENALTY
+        # presence_penalty = PRESENCE_PENALTY
+
+        def add_multimodal_fn() -> List[Component]:
+            file_input = add_document_upload()
             image_input = gr.Image(label="Input Image", type="filepath", )
             return [file_input, image_input]
+
+        additional_inputs = [
+            gr.Number(value=temperature, label='Temperature', min_width=20), 
+            gr.Number(value=max_tokens, label='Max-tokens', min_width=20), 
+            gr.Textbox(value=system_prompt, label='System prompt', lines=1),
+            gr.Textbox(value=IMAGE_TOKEN, label='Visual token', lines=1, interactive=IMAGE_TOKEN_INTERACTIVE, min_width=2),
+            gr.Textbox(value=DOC_INSTRUCTION, label='Doc instruction', lines=1),
+        ]
+        def render_additional_inputs_fn():
+            with Row():
+                additional_inputs[0].render()
+                additional_inputs[1].render()
+                additional_inputs[3].render()
+            additional_inputs[2].render()
+            additional_inputs[4].render()
 
         demo_chat = MultiModalChatInterface(
             vision_doc_chat_response_stream_multiturn_engine,
@@ -969,30 +1253,18 @@ class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
                     { "left": "$$", "right": "$$", "display": True},
                 ],
                 show_copy_button=True,
-                layout="panel",
-                height=600,
+                layout="panel" if USE_PANEL else "bubble",
+                height=CHATBOT_HEIGHT,
             ),
-            # textbox=gr.Textbox(placeholder='Type message', lines=4, max_lines=128, min_width=200),
             textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
             submit_btn=gr.Button(value='Submit', variant="primary", scale=0),
-            # ! consider preventing the stop button
-            # stop_btn=None,
             add_multimodal_fn=add_multimodal_fn,
             title=title,
             description=description,
-            additional_inputs=[
-                # gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt', 'json']),
-                # gr.Radio(choices=['No use RAG', 'Use RAG'], value='No use RAG', label='Use RAG for long doc, No RAG for short doc'), 
-                gr.Number(value=temperature, label='Temperature (higher -> more random)'), 
-                gr.Number(value=max_tokens, label='Max generated tokens (increase if want more generation)'), 
-                # gr.Number(value=frequence_penalty, label='Frequency penalty (> 0 encourage new tokens over repeated tokens)'), 
-                # gr.Number(value=presence_penalty, label='Presence penalty (> 0 encourage new tokens, < 0 encourage existing tokens)'), 
-                # gr.Number(value=0, label='current_time', visible=False), 
-                # ! Remove the system prompt textbox to avoid jailbreaking
-                gr.Textbox(value=system_prompt, label='System prompt', lines=1),
-            ], 
+            additional_inputs=additional_inputs, 
+            render_additional_inputs_fn=render_additional_inputs_fn,
             additional_inputs_accordion=gr.Accordion("Additional Inputs", open=True),
-            # examples=CHAT_EXAMPLES,
+            examples=self.examples,
             cache_examples=False,
             css=CSS,
         )

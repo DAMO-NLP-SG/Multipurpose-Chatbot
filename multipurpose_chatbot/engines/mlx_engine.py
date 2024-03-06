@@ -11,27 +11,9 @@ from mlx_lm.utils import generate_step
 
 from .base_engine import BaseEngine
 
-"""
-generate(model: mlx.nn.layers.base.Module, tokenizer: transformers.tokenization_utils.PreTrainedTokenizer, prompt: str, temp: float = 0.0, max_tokens: int = 100, verbose: bool = False, formatter: Callable = None, repetition_penalty: Optional[float] = None, repetition_context_size: Optional[int] = None) -> str
-    Generate text from the model.
-
-    Args:
-       model (nn.Module): The language model.
-       tokenizer (PreTrainedTokenizer): The tokenizer.
-       prompt (str): The string prompt.
-       temp (float): The temperature for sampling (default 0).
-       max_tokens (int): The maximum number of tokens (default 100).
-       verbose (bool): If ``True``, print tokens and timing information
-           (default ``False``).
-       formatter (Optional[Callable]): A function which takes a token and a
-           probability and displays it.
-       repetition_penalty (float, optional): The penalty factor for repeating tokens.
-       repetition_context_size (int, optional): The number of tokens to consider for repetition penalty.
-
-
-"""
-
-MODEL_PATH = os.environ.get("MODEL_PATH", "./seal-13b-chat-a")
+from ..configs import (
+    MODEL_PATH,
+)
 
 def generate_string(
     model: nn.Module,
@@ -164,7 +146,6 @@ def generate_yield_string(
 
 
 class MlxEngine(BaseEngine):
-    # (native) nguyenxuanphi@B-63TF46X3-2249 seallms % python -m mlx_lm.generate --model seallm-v2-199680-seallm-chatml-sts-mlx --max-tokens 1024 --prompt "<|im_start|>user\nGiải thích thuyết tương đối hẹp.<|im_end|><|im_start|>assistant\n"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -176,9 +157,9 @@ class MlxEngine(BaseEngine):
         return self._tokenizer
 
     def load_model(self, ):
-        # self.model, self._tokenizer = load("seallm-v2-199680-seallm-chatml-sts-mlx")
-        model_path = "/Users/nguyenxuanphi/Desktop/projects/cache/seallms/seallm-v2-199680-seallm-chatml-sts-mlx"
+        model_path = MODEL_PATH
         self._model, self._tokenizer = load(model_path)
+        self.model_path = model_path
         print(f'Load MLX model from {model_path}')
     
 

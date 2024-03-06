@@ -5,6 +5,8 @@ BACKENDS = [
     "mlx", 
     "vllm", 
     "transformers",
+    "llama_cpp",
+    # "llava_llama_cpp",
     "debug",
 ]
 
@@ -26,9 +28,18 @@ def load_multipurpose_chatbot_engine(backend: str):
     elif backend == 'transformers':
         from .transformers_engine import TransformersEngine
         model_engine = TransformersEngine()
+    elif backend == 'llama_cpp':
+        from .llama_cpp_engine import LlamaCppEngine
+        model_engine = LlamaCppEngine()
+    # ! llava_llama_cpp currently not implemented due toe bugs
+    # elif backend == 'llava_llama_cpp':
+    #     from .llava_llama_cpp_engine import LlavaLlamaCppEngine
+    #     model_engine = LlavaLlamaCppEngine()
     elif backend == 'debug':
         from .debug_engine import DebugEngine
         model_engine = DebugEngine()
+    else:
+        raise ValueError(f'backend invalid: {BACKENDS} vs {backend}')
 
     model_engine.load_model()
     ENGINE_LOADED = True

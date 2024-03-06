@@ -163,3 +163,4 @@ cython_debug/
 .vscode
 
 **/*.pyi
+**/.DS_Store

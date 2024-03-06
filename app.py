@@ -36,63 +36,34 @@ from gradio.events import Dependency, EventListenerMethod
 
 from multipurpose_chatbot.demos.base_demo import CustomTabbedInterface
 
+from multipurpose_chatbot.configs import (
+    MODEL_TITLE,
+    MODEL_DESC,
+    MODEL_INFO,
+    CITE_MARKDOWN,
+    ALLOWED_PATHS,
+    PROXY,
+    PORT,
+    MODEL_PATH,
+    MODEL_NAME,
+    BACKEND,
+)
 
-# @@ environments ================
 
-# gradio config
-PORT = int(os.environ.get("PORT", "7860"))
-PROXY = os.environ.get("PROXY", "").strip()
-
-MODEL_PATH = os.environ.get("MODEL_PATH", "./seal-13b-chat-a")
-MODEL_NAME = os.environ.get("MODEL_NAME", "Cool-Chatbot")
-# whether to enable to popup accept user
-ENABLE_AGREE_POPUP = bool(int(os.environ.get("ENABLE_AGREE_POPUP", "0")))
-
-BACKEND = os.environ.get("BACKEND", "mlx")
-
-
-allowed_paths = []
 demo = None
-
-MODEL_TITLE = "<h1>Multi-Purpose Chatbot</h1>"
-
-MODEL_DESC = f"""
-<div style='display:flex; gap: 0.25rem; '>
-<a href='https://github.com/DAMO-NLP-SG/Multipurpose-Chatbot'><img src='https://img.shields.io/badge/Github-Code-success'></a>
-</div>
-<span style="font-size: larger">
-A multi-purpose helpful assistant with multiple functionalities (Chat, Freeform, batch, RAG...).
-</span>
-""".strip()
-
-
-
-path_markdown = """
-<h4>Model Name: {model_path}</h4>
-"""
-
-
-cite_markdown = """
-## Citation
-If you find our project useful, hope you can star our repo and cite our repo as follows:
-```
-@article{multipurpose_chatbot_2024,
-  author = {Xuan-Phi Nguyen, },
-  title = {Multipurpose Chatbot},
-  year = 2024,
-}
-```
-"""
 
 
 demo_and_tab_names = {
-    "VisionDocChatInterfaceDemo": "Vision Doc Chat",
+    "VisionChatInterfaceDemo": "Vision Chat",
+    "DocChatInterfaceDemo": "Doc Chat",
+    "VisionDocChatInterfaceDemo": "Vision-Doc Chat",
+    "TextCompletionDemo": "Text completion",
     "ChatInterfaceDemo": "Chat",
-    # "RagChatInterfaceDemo": "RAG Chat",
+    "RagChatInterfaceDemo": "RAG Chat",
 }
 
 
-set_documentation_group("component")
+
 
 
 def launch_demo():
@@ -107,14 +78,9 @@ def launch_demo():
         k: get_demo_class(k)().create_demo()
         for k in demo_and_tab_names.keys()
     }
-    # demo_chat = get_demo_class("VisionChatInterfaceDemo")().create_demo()
-    # demo_chat = get_demo_class("VisionDocChatInterfaceDemo")().create_demo()
-    # demo_chat = get_demo_class("ChatInterfaceDemo")().create_demo()
-    # demo_chat = get_demo_class("RagVisionChatInterfaceDemo")().create_demo()
-    # demo_rag_chat = get_demo_class("RagChatInterfaceDemo")().create_demo()
 
     descriptions = model_desc
-    descriptions += f"<br> {path_markdown.format(model_path=model_path)}"
+    descriptions += f"<br>" + MODEL_INFO.format(model_path=model_path)
 
     demo = CustomTabbedInterface(
         interface_list=list(demos.values()),
@@ -126,18 +92,19 @@ def launch_demo():
     demo.title = MODEL_NAME
     
     with demo:
-        gr.Markdown(cite_markdown)
+        gr.Markdown(CITE_MARKDOWN)
         
-
     demo.queue(api_open=False)
     return demo
-
 
 
 
 if __name__ == "__main__":
     demo = launch_demo()
     if PROXY is not None and PROXY != "":
-        demo.launch(server_port=PORT, root_path=PROXY, show_api=False, allowed_paths=allowed_paths)
+        print(f'{PROXY=} {PORT=}')
+        demo.launch(server_port=PORT, root_path=PROXY, show_api=False, allowed_paths=ALLOWED_PATHS)
     else:
-        demo.launch(server_port=PORT, show_api=False, allowed_paths=allowed_paths)
+        demo.launch(server_port=PORT, show_api=False, allowed_paths=ALLOWED_PATHS)
+
+
