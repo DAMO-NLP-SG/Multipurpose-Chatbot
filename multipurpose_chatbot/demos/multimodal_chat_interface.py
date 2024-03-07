@@ -1050,6 +1050,10 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
     """
 
     @property
+    def tab_name(self):
+        return "Vision Chat"
+    
+    @property
     def examples(self):
         return [
             ["What's strange about this image?", "assets/dog_monalisa.jpeg",],
@@ -1066,6 +1070,7 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
         max_tokens = kwargs.get("max_tokens", MAX_TOKENS)
         temperature = kwargs.get("temperature", TEMPERATURE)
         model_name = kwargs.get("model_name", MODEL_NAME)
+        description = description or """Upload an image to ask question about it."""
 
         def add_multimodal_fn() -> List[Component]:
             image_input = gr.Image(label="Input Image", type="filepath", )
@@ -1087,7 +1092,7 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
         demo_chat = MultiModalChatInterface(
             vision_chat_response_stream_multiturn_engine,
             chatbot=gr.Chatbot(
-                label=MODEL_NAME,
+                label=model_name,
                 bubble_full_width=False,
                 latex_delimiters=[
                     { "left": "$", "right": "$", "display": False},
@@ -1130,6 +1135,10 @@ class DocChatInterfaceDemo(ChatInterfaceDemo):
     Accept document (full length no RAG)
     """
     @property
+    def tab_name(self):
+        return "Doc Chat"
+    
+    @property
     def examples(self):
         return [
             ["Summarize the document", "assets/attention_short.pdf",],
@@ -1148,6 +1157,7 @@ class DocChatInterfaceDemo(ChatInterfaceDemo):
         model_name = kwargs.get("model_name", MODEL_NAME)
         # frequence_penalty = FREQUENCE_PENALTY
         # presence_penalty = PRESENCE_PENALTY
+        description = description or """Upload a short document to ask question about it."""
 
         def add_multimodal_fn() -> List[Component]:
             file_input = add_document_upload()
@@ -1170,7 +1180,7 @@ class DocChatInterfaceDemo(ChatInterfaceDemo):
         demo_chat = MultiModalChatInterface(
             doc_chat_response_stream_multiturn_engine,
             chatbot=gr.Chatbot(
-                label=MODEL_NAME,
+                label=model_name,
                 bubble_full_width=False,
                 latex_delimiters=[
                     { "left": "$", "right": "$", "display": False},
@@ -1201,6 +1211,9 @@ class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
     """
     Accept either vision image or document (full length no RAG)
     """
+    @property
+    def tab_name(self):
+        return "Vision Doc Chat"
 
     @property
     def examples(self):
@@ -1222,6 +1235,7 @@ class VisionDocChatInterfaceDemo(ChatInterfaceDemo):
         model_name = kwargs.get("model_name", MODEL_NAME)
         # frequence_penalty = FREQUENCE_PENALTY
         # presence_penalty = PRESENCE_PENALTY
+        description = description or """Upload either an image or short document to ask question about it."""
 
         def add_multimodal_fn() -> List[Component]:
             file_input = add_document_upload()

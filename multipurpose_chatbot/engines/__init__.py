@@ -31,7 +31,7 @@ def load_multipurpose_chatbot_engine(backend: str):
     elif backend == 'llama_cpp':
         from .llama_cpp_engine import LlamaCppEngine
         model_engine = LlamaCppEngine()
-    # ! llava_llama_cpp currently not implemented due toe bugs
+    # ! llava_llama_cpp currently not done due to bugs
     # elif backend == 'llava_llama_cpp':
     #     from .llava_llama_cpp_engine import LlavaLlamaCppEngine
     #     model_engine = LlavaLlamaCppEngine()

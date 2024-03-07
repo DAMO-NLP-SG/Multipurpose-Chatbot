@@ -568,6 +568,10 @@ class RagChatInterfaceDemo(ChatInterfaceDemo):
             ["Explain how attention works.", "assets/attention_all_you_need.pdf"],
             ["Explain why the sky is blue.", None],
         ]
+    
+    @property
+    def tab_name(self):
+        return "RAG Chat"
 
     def create_demo(
             self, 
@@ -584,6 +588,10 @@ class RagChatInterfaceDemo(ChatInterfaceDemo):
         temperature = kwargs.get("temperature", TEMPERATURE)
         model_name = kwargs.get("model_name", MODEL_NAME)
         rag_num_docs = kwargs.get("rag_num_docs", 3)
+
+        from ..configs import RAG_EMBED_MODEL_NAME
+
+        description = description or f"""Upload a long document to ask question about it with RAG. Embedding model {RAG_EMBED_MODEL_NAME}"""
 
         additional_inputs = [
             gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt']),

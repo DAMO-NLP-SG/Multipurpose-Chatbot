@@ -47,20 +47,11 @@ from multipurpose_chatbot.configs import (
     MODEL_PATH,
     MODEL_NAME,
     BACKEND,
+    DEMOS,
 )
 
 
 demo = None
-
-
-demo_and_tab_names = {
-    "VisionChatInterfaceDemo": "Vision Chat",
-    "DocChatInterfaceDemo": "Doc Chat",
-    "VisionDocChatInterfaceDemo": "Vision-Doc Chat",
-    "TextCompletionDemo": "Text completion",
-    "ChatInterfaceDemo": "Chat",
-    "RagChatInterfaceDemo": "RAG Chat",
-}
 
 
 
@@ -74,17 +65,30 @@ def launch_demo():
     print(f'Begin importing models')
     from multipurpose_chatbot.demos import get_demo_class
 
+    # demos = {
+    #     k: get_demo_class(k)().create_demo()
+    #     for k in demo_and_tab_names.keys()
+    # }
+    print(f'{DEMOS=}')
+    demo_class_objects = {
+        k: get_demo_class(k)()
+        for k in DEMOS
+    }
     demos = {
         k: get_demo_class(k)().create_demo()
-        for k in demo_and_tab_names.keys()
+        for k in DEMOS
     }
+    demos_names = [x.tab_name for x in demo_class_objects.values()]
 
     descriptions = model_desc
-    descriptions += f"<br>" + MODEL_INFO.format(model_path=model_path)
+    descriptions += (
+        f"<br>" + 
+        MODEL_INFO.format(model_path=model_path)
+    )
 
     demo = CustomTabbedInterface(
         interface_list=list(demos.values()),
-        tab_names=list(demo_and_tab_names.values()),
+        tab_names=demos_names,
         title=f"{MODEL_TITLE}",
         description=descriptions,
     )

@@ -97,14 +97,18 @@ def generate_text_completion_stream_engine(
             response, num_tokens = outputs
         else:
             response, num_tokens = outputs, -1
-        yield message + response, num_tokens
+        yield message + response, f"{num_tokens} tokens"
     
     if response is not None:
-        yield message + response, num_tokens
+        yield message + response, f"{num_tokens} tokens"
 
     
 @register_demo
 class TextCompletionDemo(BaseDemo):
+    @property
+    def tab_name(self):
+        return "Text Completion"
+    
     def create_demo(
             self, 
             title: str | None = None, 
@@ -118,6 +122,9 @@ class TextCompletionDemo(BaseDemo):
         # frequence_penalty = FREQUENCE_PENALTY
         # presence_penalty = PRESENCE_PENALTY
         max_tokens = max_tokens // 2
+
+        description = description or f"""Put any context string (like few-shot prompts)"""
+
         with gr.Blocks() as demo_text_completion:
             if title:
                 gr.Markdown(title)

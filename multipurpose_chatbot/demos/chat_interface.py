@@ -162,6 +162,7 @@ class CustomizedChatInterface(gr.ChatInterface):
     """
     Fixing some issue with chatinterace
     """
+    
     def __init__(
         self,
         fn: Callable,
@@ -645,6 +646,10 @@ class CustomizedChatInterface(gr.ChatInterface):
 
 @register_demo
 class ChatInterfaceDemo(BaseDemo):
+    @property
+    def tab_name(self):
+        return "Chat"
+    
     def create_demo(
             self, 
             title: str | None = None, 

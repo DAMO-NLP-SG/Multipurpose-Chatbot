@@ -32,9 +32,25 @@ If you find our project useful, hope you can star our repo and cite our repo as 
 ```
 """
 USE_PANEL = bool(int(os.environ.get("USE_PANEL", "1")))
-CHATBOT_HEIGHT = int(os.environ.get("CHATBOT_HEIGHT", "600"))
+CHATBOT_HEIGHT = int(os.environ.get("CHATBOT_HEIGHT", "500"))
 
 ALLOWED_PATHS = []
+
+
+DEMOS = os.environ.get("DEMOS", "")
+
+DEMOS = DEMOS.split(",") if DEMOS.strip() != "" else [
+    "DocChatInterfaceDemo",
+    "ChatInterfaceDemo",
+    "TextCompletionDemo",
+    # "RagChatInterfaceDemo",
+    # "VisionChatInterfaceDemo",
+    # "VisionDocChatInterfaceDemo",
+]
+
+# DEMOS=DocChatInterfaceDemo,ChatInterfaceDemo,RagChatInterfaceDemo,TextCompletionDemo
+
+
 
 # ! server info
 

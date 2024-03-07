@@ -46,6 +46,10 @@ class BaseDemo(object):
     def __init__(self) -> None:
         pass
 
+    @property
+    def tab_name(self):
+        return "Demo"
+
     def create_demo(
             self, 
             title: Optional[str] = None, 
