@@ -49,7 +49,7 @@ DEMOS = DEMOS.split(",") if DEMOS.strip() != "" else [
     # "VisionDocChatInterfaceDemo",
 ]
 
-# DEMOS=DocChatInterfaceDemo,ChatInterfaceDemo,RagChatInterfaceDemo,TextCompletionDemo
+# DEMOS=VisionDocChatInterfaceDemo,DocChatInterfaceDemo,ChatInterfaceDemo,RagChatInterfaceDemo,TextCompletionDemo
 
 
 

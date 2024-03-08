@@ -9,3 +9,6 @@ langchain-core
 chromadb
 pypdf
 docx2txt
+sentence-transformers
+sentencepiece
+faiss-cpu
