@@ -256,7 +256,6 @@ class NewGenerationMixin(GenerationMixin):
             encoder_hidden_states = (
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
-
         # keep track of which sequences are already finished
         unfinished_sequences = torch.ones(input_ids.shape[0], dtype=torch.long, device=input_ids.device)
 
@@ -417,7 +416,7 @@ class TransformersEngine(BaseEngine):
         assert self._tokenizer.chat_template is not None and self._tokenizer.chat_template != "", f"{self._tokenizer.chat_template=} not found!"
         self._model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=self.torch_dtype, device_map=self.device_map, trust_remote_code=True).eval()
         self._model.sample_old = self._model.sample
-        self._model.sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
+        self._model._sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
         print(self._model)
         print(f"{self.max_position_embeddings=}")
     
@@ -428,7 +427,7 @@ class TransformersEngine(BaseEngine):
             inputs = self.tokenizer(prompt, return_tensors='pt')
             num_tokens = inputs.input_ids.size(1)
 
-            inputs = inputs.to(self.device_map, self.torch_dtype)
+            inputs = {k: v.to(self.device_map) for k, v in inputs.items() if v is not None}
             generator = self._model.generate(
                 **inputs, 
                 do_sample=True, 

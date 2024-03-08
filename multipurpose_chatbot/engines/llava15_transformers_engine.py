@@ -89,6 +89,9 @@ LLAVA_CHAT_TEMPLATE = """"""
 #   "chat_template": "{% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}{{ bos_token }}{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '</s>'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 
+if IMAGE_TOKEN != "<image>":
+    print(f'WARNING!!!! {IMAGE_TOKEN=} is not <image>, this can lead to problems')
+
 
 class Llava15TransformersEngine(TransformersEngine):
     """
@@ -100,7 +103,7 @@ class Llava15TransformersEngine(TransformersEngine):
 
     @property
     def max_position_embeddings(self) -> int:
-        return self._model.config.max_position_embeddings
+        return self._model.config.text_config.max_position_embeddings
 
     @property
     def tokenizer(self):
@@ -144,7 +147,8 @@ class Llava15TransformersEngine(TransformersEngine):
             torch_dtype=self.torch_dtype, device_map=self.device_map, trust_remote_code=True
         ).eval()
         self._model.sample_old = self._model.sample
-        self._model.sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
+        # self._model.sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
+        self._model._sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
 
         self._tokenizer = self._processor.tokenizer
         print(self._model)
@@ -167,7 +171,7 @@ class Llava15TransformersEngine(TransformersEngine):
         with torch.no_grad():
             inputs = self.processor(prompt, images, return_tensors='pt')
             # inputs = inputs.to("cuda", torch.bfloat16)
-            inputs = {k: v.to(self.torch_dtype) for k, v in inputs.items() if v is not None}
+            inputs = {k: v.to(self.device_map) for k, v in inputs.items() if v is not None}
             num_tokens = self.get_multimodal_tokens(prompt, image_paths)
             # non-streaming generation
             # output = self._model.generate(
