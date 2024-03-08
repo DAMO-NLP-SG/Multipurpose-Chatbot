@@ -19,9 +19,13 @@ class BaseEngine(object):
     def tokenizer(self):
         raise NotImplementedError
     
+    @property
+    def processor(self):
+        raise NotImplementedError
+    
     def load_model(self, ):
         raise NotImplementedError
-
+    
     def apply_chat_template(self, conversations, add_generation_prompt: bool, add_special_tokens=False, **kwargs) -> str:
         """
         return string convo, add_special_tokens should be added later

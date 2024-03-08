@@ -591,7 +591,11 @@ class RagChatInterfaceDemo(ChatInterfaceDemo):
 
         from ..configs import RAG_EMBED_MODEL_NAME
 
-        description = description or f"""Upload a long document to ask question about it with RAG. Embedding model {RAG_EMBED_MODEL_NAME}"""
+        description = (
+            description or 
+            f"""Upload a long document to ask question with RAG. Check at the bottom the retrieved RAG text segment. 
+Control `RAG instruction to fit your language`. Embedding model {RAG_EMBED_MODEL_NAME}."""
+        )
 
         additional_inputs = [
             gr.File(label='Upload Document', file_count='single', file_types=['pdf', 'docx', 'txt']),

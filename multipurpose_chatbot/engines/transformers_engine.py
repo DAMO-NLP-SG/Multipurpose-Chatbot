@@ -333,11 +333,19 @@ class NewGenerationMixin(GenerationMixin):
             next_model_inputs = {}
             if "cache_position" in model_inputs:
                 next_model_inputs['cache_position'] = model_inputs['cache_position']
-            model_kwargs = self._update_model_kwargs_for_generation(
-                outputs, model_kwargs, is_encoder_decoder=self.config.is_encoder_decoder, 
-                # model_inputs=model_inputs
-                model_inputs=next_model_inputs,
-            )
+            
+            try:
+                model_kwargs = self._update_model_kwargs_for_generation(
+                    outputs, model_kwargs, is_encoder_decoder=self.config.is_encoder_decoder, 
+                    # model_inputs=model_inputs
+                    model_inputs=next_model_inputs,
+                )
+            except Exception as e:
+                # Older version dont have model_inputs
+                model_kwargs = self._update_model_kwargs_for_generation(
+                    outputs, model_kwargs, is_encoder_decoder=self.config.is_encoder_decoder, 
+                )
+
 
             # if eos_token was found in one sentence, set sentence to finished
             if eos_token_id_tensor is not None:

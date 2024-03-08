@@ -81,10 +81,11 @@ def launch_demo():
     demos_names = [x.tab_name for x in demo_class_objects.values()]
 
     descriptions = model_desc
-    descriptions += (
-        f"<br>" + 
-        MODEL_INFO.format(model_path=model_path)
-    )
+    if MODEL_INFO is not None and MODEL_INFO != "":
+        descriptions += (
+            f"<br>" + 
+            MODEL_INFO.format(model_path=model_path)
+        )
 
     demo = CustomTabbedInterface(
         interface_list=list(demos.values()),

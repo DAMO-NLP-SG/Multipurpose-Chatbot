@@ -1,13 +1,9 @@
 import os
 import numpy as np
-import mlx.core as mx
-import mlx.nn as nn
 from huggingface_hub import snapshot_download
 from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizer
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 import time
-from mlx_lm import load, generate
-from mlx_lm.utils import generate_step
 
 from .base_engine import BaseEngine
 

@@ -55,6 +55,8 @@ from ..configs import (
     MODEL_NAME,
     MAX_TOKENS,
     TEMPERATURE,
+    USE_PANEL,
+    CHATBOT_HEIGHT,
 )
 
 from ..globals import MODEL_ENGINE
@@ -110,8 +112,14 @@ def format_conversation(history, system_prompt=None):
         )
         for h in history
     ])
+    _str = ""
+    for mes, res in history:
+        if mes is not None:
+            _str += f'<<<User>>> {mes}\n'
+        if res is not None:
+            _str += f'<<<Asst>>> {res}\n'
     if system_prompt is not None:
-        _str = f"<<<System>>> {system_prompt}\n" + _str
+        _str = f"<<<Syst>>> {system_prompt}\n" + _str
     return _str
 
     
@@ -153,7 +161,9 @@ def chat_response_stream_multiturn_engine(
         else:
             response, num_tokens = outputs, -1
         yield response, num_tokens
-    
+        
+    print(format_conversation(history + [[message, response]]))
+
     if response is not None:
         yield response, num_tokens
 
@@ -673,6 +683,8 @@ class ChatInterfaceDemo(BaseDemo):
                     { "left": "$$", "right": "$$", "display": True},
                 ],
                 show_copy_button=True,
+                layout="panel" if USE_PANEL else "bubble",
+                height=CHATBOT_HEIGHT,
             ),
             textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
             submit_btn=gr.Button(value='Submit', variant="primary", scale=0),

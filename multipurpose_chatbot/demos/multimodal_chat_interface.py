@@ -32,6 +32,7 @@ from .chat_interface import (
     MAX_TOKENS,
     TEMPERATURE,
     CHAT_EXAMPLES,
+    format_conversation,
     gradio_history_to_openai_conversations,
     gradio_history_to_conversation_prompt,
     DATETIME_FORMAT,
@@ -937,6 +938,8 @@ def vision_chat_response_stream_multiturn_engine(
             response, num_tokens = outputs, -1
         yield response, num_tokens
     
+    print(format_conversation(history + [[None, response]]))
+    
     if response is not None:
         yield response, num_tokens
 
@@ -983,6 +986,8 @@ def doc_chat_response_stream_multiturn_engine(
         else:
             response, num_tokens = outputs, -1
         yield response, num_tokens
+    
+    print(format_conversation(history + [[None, response]]))
     
     if response is not None:
         yield response, num_tokens
@@ -1037,6 +1042,8 @@ def vision_doc_chat_response_stream_multiturn_engine(
         else:
             response, num_tokens = outputs, -1
         yield response, num_tokens
+    
+    print(format_conversation(history + [[None, response]]))
     
     if response is not None:
         yield response, num_tokens
@@ -1122,6 +1129,7 @@ class VisionChatInterfaceDemo(ChatInterfaceDemo):
 
 def add_document_upload():
     file_input = gr.File(label='Upload pdf, docx, txt', file_count='single', file_types=['pdf', 'docx', 'txt'])
+    # ! Some platform has problems with gr.File, so use uploadbutton instead
     # with Group():
     #     file_input = gr.Textbox(value=None, label='Document path', lines=1, interactive=False)
     #     upload_button = gr.UploadButton("Click to Upload document", file_types=['pdf', 'docx', 'txt'], file_count="single")
