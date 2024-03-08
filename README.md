@@ -9,7 +9,8 @@ Designed support both locally, remote and huggingface spaces.
 ---
 
 **Checkout cool demos using Multi-purpose chatbot.**
-- [MultiModal SeaLLM-7B](https://huggingface.co/spaces/SeaLLMs/SeaLLM-7B)
+- [MultiModal SeaLLMs/SeaLLM-7B](https://huggingface.co/spaces/SeaLLMs/SeaLLM-7B)
+- [MultiPurpose-Chatbot-DEMO test](https://huggingface.co/spaces/nxphi47/MultiPurpose-Chatbot-DEMO) - This DEMO test the UI without LLM.
 
 **Supported features**
 - Vanilla chat interface - [ChatInterfaceDemo](multipurpose_chatbot/demos/chat_interface.py)
