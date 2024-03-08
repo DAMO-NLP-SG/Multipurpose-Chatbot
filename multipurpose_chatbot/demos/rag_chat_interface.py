@@ -73,6 +73,8 @@ from ..configs import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
     RAG_EMBED_MODEL_NAME,
+    CHATBOT_HEIGHT,
+    USE_PANEL,
 )
 
 RAG_CURRENT_VECTORSTORE = None
@@ -289,12 +291,21 @@ class RagChatInterface(CustomizedChatInterface):
             if description:
                 Markdown(description)
 
-            if chatbot:
-                self.chatbot = chatbot.render()
-            else:
-                self.chatbot = Chatbot(
-                    label="Chatbot", scale=1, height=200 if fill_height else None
+            with Row():
+                self.rag_content = gr.Textbox(
+                    scale=1,
+                    lines=4,
+                    max_lines=16,
+                    label='Retrieved RAG context',
+                    placeholder="Rag context and instrution will show up here",
+                    interactive=False
                 )
+                if chatbot:
+                    self.chatbot = chatbot.render()
+                else:
+                    self.chatbot = Chatbot(
+                        label="Chatbot", scale=3, height=200 if fill_height else None
+                    )
 
             with Row():
                 for btn in [retry_btn, undo_btn, clear_btn]:
@@ -402,13 +413,13 @@ class RagChatInterface(CustomizedChatInterface):
                             if not input_component.is_rendered:
                                 input_component.render()
             
-            self.rag_content = gr.Textbox(
-                scale=4,
-                lines=16,
-                label='Retrieved RAG context',
-                placeholder="Rag context and instrution will show up here",
-                interactive=False
-            )
+            # self.rag_content = gr.Textbox(
+            #     scale=4,
+            #     lines=16,
+            #     label='Retrieved RAG context',
+            #     placeholder="Rag context and instrution will show up here",
+            #     interactive=False
+            # )
 
             # The example caching must happen after the input components have rendered
             if cache_examples:
@@ -593,8 +604,8 @@ class RagChatInterfaceDemo(ChatInterfaceDemo):
 
         description = (
             description or 
-            f"""Upload a long document to ask question with RAG. Check at the bottom the retrieved RAG text segment. 
-Control `RAG instruction to fit your language`. Embedding model {RAG_EMBED_MODEL_NAME}."""
+            f"""Upload a long document to ask question with RAG. Check the RAG retrieved text segment on the left. 
+Control `RAG instruction` below to fit your language. Embedding model {RAG_EMBED_MODEL_NAME}."""
         )
 
         additional_inputs = [
@@ -624,6 +635,9 @@ Control `RAG instruction to fit your language`. Embedding model {RAG_EMBED_MODEL
                     { "left": "$$", "right": "$$", "display": True},
                 ],
                 show_copy_button=True,
+                scale=3,
+                layout="panel" if USE_PANEL else "bubble",
+                height=CHATBOT_HEIGHT,
             ),
             textbox=gr.Textbox(placeholder='Type message', lines=1, max_lines=128, min_width=200, scale=8),
             submit_btn=gr.Button(value='Submit', variant="primary", scale=0),
