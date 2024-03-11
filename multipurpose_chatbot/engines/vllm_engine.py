@@ -192,7 +192,7 @@ class VllmEngine(BaseEngine):
     def generate_yield_string(self, prompt, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         from vllm import SamplingParams
         # ! must abort previous ones
-        vllm_abort(llm)
+        vllm_abort(self._model)
         sampling_params = SamplingParams(
             temperature=temperature, 
             max_tokens=max_tokens,
@@ -202,7 +202,7 @@ class VllmEngine(BaseEngine):
         )
         cur_out = None
         num_tokens = len(self.tokenizer.encode(prompt))
-        for j, gen in enumerate(vllm_generate_stream(llm, prompt, sampling_params)):
+        for j, gen in enumerate(vllm_generate_stream(self._model, prompt, sampling_params)):
             if cur_out is not None and (STREAM_YIELD_MULTIPLE < 1 or j % STREAM_YIELD_MULTIPLE == 0) and j > 0:
                 yield cur_out, num_tokens
             assert len(gen) == 1, f'{gen}'
@@ -220,7 +220,7 @@ class VllmEngine(BaseEngine):
         """
         from vllm import SamplingParams
         # ! must abort previous ones
-        vllm_abort(llm)
+        vllm_abort(self._model)
         sampling_params = SamplingParams(
             temperature=temperature, 
             max_tokens=max_tokens,
@@ -228,6 +228,6 @@ class VllmEngine(BaseEngine):
             # presence_penalty=presence_penalty,
             stop=stop_strings,
         )
-        generated = llm.generate(prompts, sampling_params, use_tqdm=False)
+        generated = self._model.generate(prompts, sampling_params, use_tqdm=False)
         responses = [g.outputs[0].text for g in generated]
         return responses
