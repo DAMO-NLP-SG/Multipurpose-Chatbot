@@ -48,6 +48,7 @@ from multipurpose_chatbot.configs import (
     MODEL_NAME,
     BACKEND,
     DEMOS,
+    CSS,
 )
 
 
@@ -62,14 +63,10 @@ def launch_demo():
     model_desc = MODEL_DESC
     model_path = MODEL_PATH
 
-    print(f'Begin importing models')
+    print(f'Begin importing models: {BACKEND=}')
+    print(f'{DEMOS=}')
     from multipurpose_chatbot.demos import get_demo_class
 
-    # demos = {
-    #     k: get_demo_class(k)().create_demo()
-    #     for k in demo_and_tab_names.keys()
-    # }
-    print(f'{DEMOS=}')
     demo_class_objects = {
         k: get_demo_class(k)()
         for k in DEMOS
@@ -86,12 +83,14 @@ def launch_demo():
             f"<br>" + 
             MODEL_INFO.format(model_path=model_path)
         )
-
+    
     demo = CustomTabbedInterface(
         interface_list=list(demos.values()),
         tab_names=demos_names,
         title=f"{MODEL_TITLE}",
         description=descriptions,
+        css=CSS,
+        fill_height=True,
     )
 
     demo.title = MODEL_NAME

@@ -61,9 +61,25 @@ from ..configs import (
 
 from ..globals import MODEL_ENGINE
 
+# CHAT_EXAMPLES = [
+# ]
+
 CHAT_EXAMPLES = [
+    ["Hãy giải thích thuyết tương đối rộng."],
+    ["Hãy giải thích vấn đề P vs NP."],
     ["Explain general relativity."],
+    ['Vừa gà vừa chó, bó lại cho tròn, 36 con và 100 chân chẵn. Hỏi có bao nhiêu gà và chó?'],
+    ['Hôm nay tôi có 5 quả cam. Hôm qua tôi ăn 2 quả. Vậy hôm nay tôi có mấy quả cam?'],
+    ['5 điều bác Hồ dạy là gì?'],
+    ["Tolong bantu saya menulis email ke lembaga pemerintah untuk mencari dukungan finansial untuk penelitian AI."],
+    ["ຂໍແຈ້ງ 5 ສະຖານທີ່ທ່ອງທ່ຽວໃນນະຄອນຫຼວງວຽງຈັນ"],
+    ['ငွေကြေးအခက်အခဲကြောင့် ပညာသင်ဆုတောင်းဖို့ တက္ကသိုလ်ကို စာတစ်စောင်ရေးပြီး ကူညီပေးပါ။'],
+    ["Sally has 3 brothers, each brother has 2 sisters. How many sister sally has?"],
+    ["There are 3 killers in a room. Someone enters the room and kills 1 of them. Assuming no one leaves the room. How many killers are left in the room?"],
+    ["Assume the laws of physics on Earth. A small marble is put into a normal cup and the cup is placed upside down on a table. Someone then takes the cup and puts it inside the microwave. Where is the ball now? Explain your reasoning step by step."],
+    ["Why my parents did not invited me to their weddings?"],
 ]
+
 DATETIME_FORMAT = "Current date time: {cur_datetime}."
 
 
@@ -595,6 +611,27 @@ class CustomizedChatInterface(gr.ChatInterface):
                 queue=False,
             )
         # Reconfigure clear_btn to stop and clear text box
+    
+    def _delete_prev_fn(
+        self,
+        message: str | dict[str, list],
+        history: list[list[str | tuple | None]],
+    ) -> tuple[
+        list[list[str | tuple | None]],
+        str | dict[str, list],
+        list[list[str | tuple | None]],
+    ]:
+        if isinstance(message, dict):
+            # handling for multi-modal
+            remove_input = (
+                len(message["files"]) + 1
+                if message["text"] is not None
+                else len(message["files"])
+            )
+            history = history[:-remove_input]
+        else:
+            history = history[:-1]
+        return history, message or "", history
 
     def _clear_and_save_textbox(self, message: str) -> tuple[str, str]:
         return "", message

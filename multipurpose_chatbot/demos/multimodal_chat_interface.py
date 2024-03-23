@@ -78,6 +78,12 @@ from ..configs import (
     CHATBOT_HEIGHT,
 )
 
+MultimodalTextbox = None
+
+try:
+    from gradio import MultimodalTextbox
+except ImportError as e:
+    print(f'Cannot import MultiMOdalTextbox: {MultimodalTextbox}')
 
 
 CSS = """

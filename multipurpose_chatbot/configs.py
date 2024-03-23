@@ -32,6 +32,21 @@ If you find our project useful, hope you can star our repo and cite our repo as 
 ```
 """
 
+CSS = """
+.message-wrap.svelte-1lcyrx4>div.svelte-1lcyrx4  img {
+    min-width: 200px;
+    min-height: 150px;
+    max-height: 600px;
+    max-width; 90%;
+    width: auto;
+    object-fit: contain;
+}
+.panel-full-width.svelte-1lcyrx4.svelte-1lcyrx4.svelte-1lcyrx4 {
+    padding: calc(var(--spacing-xxl) * 1);
+    width: 100%
+}
+"""
+
 USE_PANEL = bool(int(os.environ.get("USE_PANEL", "1")))
 CHATBOT_HEIGHT = int(os.environ.get("CHATBOT_HEIGHT", "500"))
 

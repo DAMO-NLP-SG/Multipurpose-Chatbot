@@ -6,3 +6,4 @@ from .rag_chat_interface import RagChatInterfaceDemo
 from .multimodal_chat_interface import *
 from .text_completion import *
 from .batch_inference import *
+from .mm_chat_interface import *

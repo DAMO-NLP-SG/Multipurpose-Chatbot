@@ -56,6 +56,7 @@ from ..configs import (
     MODEL_PATH,
     DTYPE,
     DEVICE,
+    STREAM_YIELD_MULTIPLE,
 )
 
 
@@ -416,7 +417,9 @@ class TransformersEngine(BaseEngine):
         assert self._tokenizer.chat_template is not None and self._tokenizer.chat_template != "", f"{self._tokenizer.chat_template=} not found!"
         self._model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=self.torch_dtype, device_map=self.device_map, trust_remote_code=True).eval()
         self._model.sample_old = self._model.sample
+        # ! depending on version, setting _sample or sample
         self._model._sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
+        self._model.sample = types.MethodType(NewGenerationMixin.sample_stream, self._model)
         print(self._model)
         print(f"{self.max_position_embeddings=}")
     
@@ -433,18 +436,25 @@ class TransformersEngine(BaseEngine):
                 do_sample=True, 
                 temperature=temperature, 
                 max_new_tokens=max_tokens, 
-                pad_token_id=self.processor.tokenizer.pad_token_id,
+                pad_token_id=self.tokenizer.pad_token_id,
             )
 
             out_tokens = []
             response = None
-            for token in generator:
+            for index, token in enumerate(generator):
+                if len(token) > 1:
+                    raise ValueError(
+                        f'{token=} token is list, likely you have not enable generator sampling correctly, '
+                        'please check your self._model._sample (or .sample)'
+                    )
                 out_tokens.append(token.item())
-                response = self.processor.tokenizer.decode(out_tokens)
+                response = self.tokenizer.decode(out_tokens, skip_special_tokens=True)
                 num_tokens += 1
-                # print(f"{num_tokens=}", end='\r')
-                # sys.stdout.flush()
-                yield response, num_tokens
+                if STREAM_YIELD_MULTIPLE > 0:
+                    if index % STREAM_YIELD_MULTIPLE == 0 and index > 0:
+                        yield response, num_tokens
+                else:
+                    yield response, num_tokens
             
             if response is not None:
                 full_text = prompt + response

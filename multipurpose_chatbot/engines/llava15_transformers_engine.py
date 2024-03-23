@@ -174,28 +174,6 @@ class Llava15TransformersEngine(TransformersEngine):
             inputs = {k: v.to(self.device_map) for k, v in inputs.items() if v is not None}
             num_tokens = self.get_multimodal_tokens(prompt, image_paths)
             # non-streaming generation
-            # output = self._model.generate(
-            #     **inputs, 
-            #     do_sample=True, 
-            #     temperature=temperature, 
-            #     max_new_tokens=max_tokens,
-            #     pad_token_id=self.processor.tokenizer.pad_token_id,
-            # )
-            # # response = self.processor.tokenizer.decode(output[0][-inputs.input_ids.size(-1):], skip_special_tokens=True)
-            # full_output_text = self.processor.decode(output[0], skip_special_tokens=True)
-            # response = full_output_text.split("<|im_start|>assistant\n")[-1]
-            # num_tokens = self.get_multimodal_tokens(prompt + response, image_paths)
-            # print(prompt)
-            # print(response)
-            # print(num_tokens)
-            # yield response, num_tokens
-
-            # if i % 4 == 0 and i > 1:
-            #     message_safety = safety_check(response)
-            #     if message_safety is not None:
-            #         history = undo_history(history)
-            #         yield history, "", None
-            #         raise gr.Error(message_safety)
 
             # # ! streaming
             generator = self._model.generate(
@@ -203,16 +181,20 @@ class Llava15TransformersEngine(TransformersEngine):
                 do_sample=True, 
                 temperature=temperature, 
                 max_new_tokens=max_tokens, 
-                pad_token_id=self.processor.tokenizer.pad_token_id,
+                pad_token_id=self.tokenizer.pad_token_id,
             )
 
             out_tokens = []
             response = None
             for index, token in enumerate(generator):
                 out_tokens.append(token.item())
-                response = self.processor.tokenizer.decode(out_tokens)
+                response = self.tokenizer.decode(out_tokens, skip_special_tokens=True)
 
-                yield response, num_tokens
+                if STREAM_YIELD_MULTIPLE > 0:
+                    if index % STREAM_YIELD_MULTIPLE == 0 and index > 0:
+                        yield response, num_tokens
+                else:
+                    yield response, num_tokens
             
             del generator
             
@@ -222,8 +204,6 @@ class Llava15TransformersEngine(TransformersEngine):
                 num_tokens = self.get_multimodal_tokens(full_text, image_paths)
                 yield response, num_tokens
 
-        # raw_image = Image.open(requests.get(image_file, stream=True).raw)
-        # inputs = processor(prompt, raw_image, return_tensors='pt').to(0, torch.float16)
 
 
 

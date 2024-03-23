@@ -70,6 +70,7 @@ class CustomTabbedInterface(gr.Blocks):
         theme: Optional[gr.Theme] = None,
         analytics_enabled: Optional[bool] = None,
         css: Optional[str] = None,
+        fill_height: bool = False,
     ):
         """
         Parameters:
@@ -87,6 +88,7 @@ class CustomTabbedInterface(gr.Blocks):
             analytics_enabled=analytics_enabled,
             mode="tabbed_interface",
             css=css,
+            fill_height=fill_height,
         )
         self.description = description
         if tab_names is None:

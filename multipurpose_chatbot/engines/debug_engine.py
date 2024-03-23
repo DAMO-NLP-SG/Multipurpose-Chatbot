@@ -12,7 +12,7 @@ from ..configs import (
 )
 
 FAKE_MODEL_PATH = os.environ.get("FAKE_MODEL_PATH", MODEL_PATH)
-FAKE_RESPONSE = "Wow that's very very cool, please try again."
+FAKE_RESPONSE = "Wow that's very very cool, please try again. "
 
 
 class DebugEngine(BaseEngine):
