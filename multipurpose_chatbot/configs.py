@@ -94,7 +94,7 @@ PRESENCE_PENALTY = float(os.environ.get("PRESENCE_PENALTY", "0.0"))
 
 
 # Transformers or vllm
-MODEL_PATH = os.environ.get("MODEL_PATH", "teknium/OpenHermes-2.5-Mistral-7B")
+MODEL_PATH = os.environ.get("MODEL_PATH", "SeaLLMs/SeaLLM-7B-v2.5")
 MODEL_NAME = os.environ.get("MODEL_NAME", "Cool-Chatbot")
 DTYPE = os.environ.get("DTYPE", "bfloat16")
 DEVICE = os.environ.get("DEVICE", "cuda")

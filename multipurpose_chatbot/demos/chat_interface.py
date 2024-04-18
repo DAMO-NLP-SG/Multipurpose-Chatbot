@@ -74,10 +74,10 @@ CHAT_EXAMPLES = [
     ["Tolong bantu saya menulis email ke lembaga pemerintah untuk mencari dukungan finansial untuk penelitian AI."],
     ["ຂໍແຈ້ງ 5 ສະຖານທີ່ທ່ອງທ່ຽວໃນນະຄອນຫຼວງວຽງຈັນ"],
     ['ငွေကြေးအခက်အခဲကြောင့် ပညာသင်ဆုတောင်းဖို့ တက္ကသိုလ်ကို စာတစ်စောင်ရေးပြီး ကူညီပေးပါ။'],
-    ["Sally has 3 brothers, each brother has 2 sisters. How many sister sally has?"],
+    ["Sally has 3 brothers, each brother has 2 sisters. How many sister sally has? Explain step by step."],
     ["There are 3 killers in a room. Someone enters the room and kills 1 of them. Assuming no one leaves the room. How many killers are left in the room?"],
     ["Assume the laws of physics on Earth. A small marble is put into a normal cup and the cup is placed upside down on a table. Someone then takes the cup and puts it inside the microwave. Where is the ball now? Explain your reasoning step by step."],
-    ["Why my parents did not invited me to their weddings?"],
+    ["Why didn't my parents invite me to their weddings?"],
 ]
 
 DATETIME_FORMAT = "Current date time: {cur_datetime}."
@@ -422,8 +422,9 @@ class CustomizedChatInterface(gr.ChatInterface):
                 self.examples_handler = Examples(
                     examples=examples,
                     inputs=[self.textbox] + self.additional_inputs,
-                    outputs=self.chatbot,
-                    fn=examples_fn,
+                    # outputs=self.chatbot,
+                    # fn=examples_fn,
+                    cache_examples=False,
                 )
 
             any_unrendered_inputs = any(

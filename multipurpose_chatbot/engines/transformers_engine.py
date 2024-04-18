@@ -56,6 +56,7 @@ from ..configs import (
     MODEL_PATH,
     DTYPE,
     DEVICE,
+    STREAM_CHECK_MULTIPLE,
     STREAM_YIELD_MULTIPLE,
 )
 
@@ -423,7 +424,7 @@ class TransformersEngine(BaseEngine):
         print(self._model)
         print(f"{self.max_position_embeddings=}")
     
-    def generate_yield_string(self, prompt, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
+    def generate_yield_string(self, prompt, temperature=0.7, max_tokens=512, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         
         # ! MUST PUT INSIDE torch.no_grad() otherwise it will overflow OOM
         with torch.no_grad():

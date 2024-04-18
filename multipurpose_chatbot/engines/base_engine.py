@@ -26,6 +26,24 @@ class BaseEngine(object):
     def load_model(self, ):
         raise NotImplementedError
     
+    def generate_yield_string(self, prompt, *args, **kwargs):
+        raise NotImplementedError
+    
+    def generate_yield_string_final(self, *args, **kwargs):
+        output = None
+        for out in self.generate_yield_string(*args, **kwargs):
+            output = out
+        return output
+    
+    def generate_yield_string(self, prompt, *args, **kwargs):
+        raise NotImplementedError
+    
+    def generate_yield_string_final(self, *args, **kwargs):
+        output = None
+        for out in self.generate_yield_string(*args, **kwargs):
+            output = out
+        return output
+    
     def apply_chat_template(self, conversations, add_generation_prompt: bool, add_special_tokens=False, **kwargs) -> str:
         """
         return string convo, add_special_tokens should be added later

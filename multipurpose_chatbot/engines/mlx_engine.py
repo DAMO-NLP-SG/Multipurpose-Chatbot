@@ -161,9 +161,8 @@ class MlxEngine(BaseEngine):
         self._model, self._tokenizer = load(model_path)
         self.model_path = model_path
         print(f'Load MLX model from {model_path}')
-    
 
-    def generate_yield_string(self, prompt, temperature, max_tokens, stop_strings: Optional[Tuple[str]] = None, **kwargs):
+    def generate_yield_string(self, prompt, temperature=0.7, max_tokens=512, stop_strings: Optional[Tuple[str]] = None, **kwargs):
         num_tokens = len(self.tokenizer.encode(prompt))
         response = None
         for response in generate_yield_string(
